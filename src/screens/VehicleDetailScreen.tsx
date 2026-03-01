@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Alert, TextInput,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, TextInput,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -80,88 +80,110 @@ export default function VehicleDetailScreen({ navigation, route }: Props) {
     return { formatted, color, label };
   })() : null;
 
-  const headerComponent = (
-    <View>
-      <View style={styles.header}>
-        {vehicle.photo_uri ? (
-          <Image source={{ uri: vehicle.photo_uri }} style={styles.photo} />
-        ) : (
-          <View style={styles.photoPlaceholder}>
-            <Text style={styles.placeholderIcon}>🏍️</Text>
-          </View>
-        )}
-        <View style={styles.headerInfo}>
-          <View style={styles.nameRow}>
-            <HealthIndicator status={overallHealth} size={14} />
-            <Text style={styles.name}>{vehicle.name}</Text>
-          </View>
-          <Text style={styles.detail}>
-            {vehicle.year ? `${vehicle.year} ` : ''}{vehicle.make} {vehicle.model}
-          </Text>
-          <Text style={styles.hours}>{vehicle.current_hours.toFixed(1)} hours</Text>
-          {regExpiryInfo && (
-            <View style={styles.regRow}>
-              <Text style={styles.regLabel}>Reg: {regExpiryInfo.formatted}</Text>
-              <View style={[styles.regBadge, { backgroundColor: regExpiryInfo.color + '20' }]}>
-                <Text style={[styles.regBadgeText, { color: regExpiryInfo.color }]}>{regExpiryInfo.label}</Text>
-              </View>
-            </View>
-          )}
-        </View>
-      </View>
+  // Sort: red first, yellow second, green last
+  const sortedItems = [...items].sort((a, b) => {
+    const order = { red: 0, yellow: 1, green: 2 };
+    return order[a.health] - order[b.health];
+  });
 
-      <View style={styles.actions}>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('LogRide', { vehicleId })}>
-          <Text style={styles.actionIcon}>⏱️</Text>
-          <Text style={styles.actionLabel}>Log Ride</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('MaintenanceHistory', { vehicleId })}>
-          <Text style={styles.actionIcon}>📋</Text>
-          <Text style={styles.actionLabel}>History</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('AddEditVehicle', { vehicleId })}>
-          <Text style={styles.actionIcon}>✏️</Text>
-          <Text style={styles.actionLabel}>Edit</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Maintenance Items</Text>
-        <TouchableOpacity onPress={() => setShowAddItem(!showAddItem)}>
-          <Text style={styles.addLink}>{showAddItem ? 'Cancel' : '+ Add Custom'}</Text>
-        </TouchableOpacity>
-      </View>
-
-      {showAddItem && (
-        <View style={styles.addItemForm}>
-          <TextInput style={styles.addItemInput} value={newItemName} onChangeText={setNewItemName} placeholder="Item name" />
-          <TextInput style={[styles.addItemInput, styles.addItemIntervalInput]} value={newItemInterval} onChangeText={setNewItemInterval} placeholder="Hrs" keyboardType="decimal-pad" />
-          <TouchableOpacity style={styles.addItemBtn} onPress={handleAddCustomItem}>
-            <Text style={styles.addItemBtnText}>Add</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      <Text style={styles.longPressHint}>Long-press an item for more options</Text>
-    </View>
-  );
+  const attentionItems = sortedItems.filter((i) => i.health === 'red' || i.health === 'yellow');
+  const goodItems = sortedItems.filter((i) => i.health === 'green');
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <TouchableOpacity onLongPress={() => handleLongPressItem(item)} delayLongPress={500}>
-            <MaintenanceItemRow
-              item={item}
-              onPress={() => navigation.navigate('MarkDone', { vehicleId, itemId: item.id })}
-            />
+      <ScrollView contentContainerStyle={styles.list}>
+        <View style={styles.header}>
+          {vehicle.photo_uri ? (
+            <Image source={{ uri: vehicle.photo_uri }} style={styles.photo} />
+          ) : (
+            <View style={styles.photoPlaceholder}>
+              <Text style={styles.placeholderIcon}>🏍️</Text>
+            </View>
+          )}
+          <View style={styles.headerInfo}>
+            <View style={styles.nameRow}>
+              <HealthIndicator status={overallHealth} size={14} />
+              <Text style={styles.name}>{vehicle.name}</Text>
+            </View>
+            <Text style={styles.detail}>
+              {vehicle.year ? `${vehicle.year} ` : ''}{vehicle.make} {vehicle.model}
+            </Text>
+            <Text style={styles.hours}>{vehicle.current_hours.toFixed(1)} hours</Text>
+            {regExpiryInfo && (
+              <View style={styles.regRow}>
+                <Text style={styles.regLabel}>Reg: {regExpiryInfo.formatted}</Text>
+                <View style={[styles.regBadge, { backgroundColor: regExpiryInfo.color + '20' }]}>
+                  <Text style={[styles.regBadgeText, { color: regExpiryInfo.color }]}>{regExpiryInfo.label}</Text>
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.actions}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('LogRide', { vehicleId })}>
+            <Text style={styles.actionIcon}>⏱️</Text>
+            <Text style={styles.actionLabel}>Log Ride</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('MaintenanceHistory', { vehicleId })}>
+            <Text style={styles.actionIcon}>📋</Text>
+            <Text style={styles.actionLabel}>History</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('AddEditVehicle', { vehicleId })}>
+            <Text style={styles.actionIcon}>✏️</Text>
+            <Text style={styles.actionLabel}>Edit</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Maintenance Items</Text>
+          <TouchableOpacity onPress={() => setShowAddItem(!showAddItem)}>
+            <Text style={styles.addLink}>{showAddItem ? 'Cancel' : '+ Add Custom'}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {showAddItem && (
+          <View style={styles.addItemForm}>
+            <TextInput style={styles.addItemInput} value={newItemName} onChangeText={setNewItemName} placeholder="Item name" />
+            <TextInput style={[styles.addItemInput, styles.addItemIntervalInput]} value={newItemInterval} onChangeText={setNewItemInterval} placeholder="Hrs" keyboardType="decimal-pad" />
+            <TouchableOpacity style={styles.addItemBtn} onPress={handleAddCustomItem}>
+              <Text style={styles.addItemBtnText}>Add</Text>
+            </TouchableOpacity>
+          </View>
         )}
-        ListHeaderComponent={headerComponent}
-        contentContainerStyle={styles.list}
-      />
+
+        {attentionItems.length > 0 && (
+          <View style={styles.group}>
+            <Text style={styles.groupHeader}>NEEDS ATTENTION</Text>
+            <View style={styles.groupCard}>
+              {attentionItems.map((item) => (
+                <MaintenanceItemRow
+                  key={item.id}
+                  item={item}
+                  onPress={() => navigation.navigate('MarkDone', { vehicleId, itemId: item.id })}
+                  onLongPress={() => handleLongPressItem(item)}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+
+        {goodItems.length > 0 && (
+          <View style={styles.group}>
+            <Text style={[styles.groupHeader, { color: '#4CAF50' }]}>GOOD</Text>
+            <View style={styles.groupCard}>
+              {goodItems.map((item) => (
+                <MaintenanceItemRow
+                  key={item.id}
+                  item={item}
+                  onPress={() => navigation.navigate('MarkDone', { vehicleId, itemId: item.id })}
+                  onLongPress={() => handleLongPressItem(item)}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+      </ScrollView>
 
       <ConfirmModal
         visible={!!deleteTarget}
@@ -213,5 +235,13 @@ const styles = StyleSheet.create({
   addItemIntervalInput: { flex: 0.4 },
   addItemBtn: { backgroundColor: '#2196F3', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10 },
   addItemBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
-  longPressHint: { fontSize: 11, color: '#bbb', textAlign: 'center', marginBottom: 4 },
+  group: { marginTop: 4 },
+  groupHeader: {
+    fontSize: 12, fontWeight: '700', color: '#F44336', letterSpacing: 0.5,
+    paddingHorizontal: 16, marginBottom: 4,
+  },
+  groupCard: {
+    backgroundColor: '#fff', marginHorizontal: 12, borderRadius: 10,
+    paddingVertical: 4, overflow: 'hidden',
+  },
 });

@@ -10,6 +10,11 @@ export function computeHealth(
   item: MaintenanceItem,
   currentHours: number
 ): MaintenanceItemWithHealth {
+  // Items with no interval are "track only" — always green, no countdown
+  if (item.interval_hours <= 0) {
+    return { ...item, hoursRemaining: 0, percentRemaining: 100, health: 'green' };
+  }
+
   const hoursRemaining = item.interval_hours - (currentHours - item.last_done_hours);
   const percentRemaining = Math.max(0, (hoursRemaining / item.interval_hours) * 100);
 

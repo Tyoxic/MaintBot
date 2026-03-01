@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList, MaintenanceItem, Vehicle } from '../models/types';
 import { getVehicle } from '../db/vehicles';
@@ -13,6 +13,7 @@ export default function MarkDoneScreen({ navigation, route }: Props) {
   const { vehicleId, itemId } = route.params;
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [item, setItem] = useState<MaintenanceItem | null>(null);
+  const [hoursAtService, setHoursAtService] = useState('');
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
@@ -20,16 +21,23 @@ export default function MarkDoneScreen({ navigation, route }: Props) {
       const [v, i] = await Promise.all([getVehicle(vehicleId), getMaintenanceItem(itemId)]);
       setVehicle(v);
       setItem(i);
+      if (v) setHoursAtService(v.current_hours.toString());
     })();
   }, [vehicleId, itemId]);
 
   if (!vehicle || !item) return null;
 
+  const parsedHours = parseFloat(hoursAtService) || 0;
+  const trackOnly = item.interval_hours <= 0;
   const health = computeHealth(item, vehicle.current_hours);
 
   const handleConfirm = async () => {
-    await markItemDone(itemId, vehicle.current_hours);
-    await addMaintenanceLog(vehicleId, itemId, item.name, vehicle.current_hours, notes.trim());
+    if (parsedHours < 0) {
+      Alert.alert('Invalid hours', 'Hours at service cannot be negative.');
+      return;
+    }
+    await markItemDone(itemId, parsedHours);
+    await addMaintenanceLog(vehicleId, itemId, item.name, parsedHours, notes.trim());
     navigation.goBack();
   };
 
@@ -37,26 +45,42 @@ export default function MarkDoneScreen({ navigation, route }: Props) {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.card}>
         <Text style={styles.itemName}>{item.name}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: HEALTH_COLORS[health.health] + '20' }]}>
-          <Text style={[styles.statusText, { color: HEALTH_COLORS[health.health] }]}>
-            {health.hoursRemaining <= 0
-              ? `Overdue by ${Math.abs(health.hoursRemaining).toFixed(1)} hrs`
-              : `${health.hoursRemaining.toFixed(1)} hrs remaining`}
-          </Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Interval</Text>
-          <Text style={styles.infoValue}>Every {item.interval_hours} hrs</Text>
-        </View>
+        {!trackOnly && (
+          <View style={[styles.statusBadge, { backgroundColor: HEALTH_COLORS[health.health] + '20' }]}>
+            <Text style={[styles.statusText, { color: HEALTH_COLORS[health.health] }]}>
+              {health.hoursRemaining <= 0
+                ? `Overdue by ${Math.abs(health.hoursRemaining).toFixed(1)} hrs`
+                : `${health.hoursRemaining.toFixed(1)} hrs remaining`}
+            </Text>
+          </View>
+        )}
+        {!trackOnly && (
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Interval</Text>
+            <Text style={styles.infoValue}>Every {item.interval_hours} hrs</Text>
+          </View>
+        )}
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Last done at</Text>
           <Text style={styles.infoValue}>{item.last_done_hours.toFixed(1)} hrs</Text>
         </View>
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Current hours</Text>
+          <Text style={styles.infoLabel}>Current bike hours</Text>
           <Text style={styles.infoValue}>{vehicle.current_hours.toFixed(1)} hrs</Text>
         </View>
       </View>
+
+      <Text style={styles.label}>Hours at service</Text>
+      <TextInput
+        style={styles.input}
+        value={hoursAtService}
+        onChangeText={setHoursAtService}
+        keyboardType="decimal-pad"
+        placeholder={vehicle.current_hours.toString()}
+      />
+      <Text style={styles.hint}>
+        Defaults to current bike hours. Change if this was done at a different time.
+      </Text>
 
       <Text style={styles.label}>Notes (optional)</Text>
       <TextInput
@@ -69,7 +93,7 @@ export default function MarkDoneScreen({ navigation, route }: Props) {
       />
 
       <Text style={styles.confirmText}>
-        This will mark "{item.name}" as done at {vehicle.current_hours.toFixed(1)} hours and reset the counter.
+        This will mark "{item.name}" as done at {parsedHours.toFixed(1)} hours.
       </Text>
 
       <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
@@ -94,6 +118,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 12,
     fontSize: 15, borderWidth: 1, borderColor: '#e0e0e0',
   },
+  hint: { fontSize: 11, color: '#aaa', marginTop: 4, marginBottom: 12 },
   notesInput: { height: 80, textAlignVertical: 'top', marginBottom: 20 },
   confirmText: { fontSize: 13, color: '#888', textAlign: 'center', marginBottom: 16, lineHeight: 18 },
   confirmBtn: { backgroundColor: '#4CAF50', borderRadius: 8, paddingVertical: 14, alignItems: 'center' },

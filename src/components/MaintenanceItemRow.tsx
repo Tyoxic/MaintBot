@@ -2,47 +2,79 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { MaintenanceItemWithHealth } from '../models/types';
 import { HEALTH_COLORS } from '../utils/colors';
-import HealthIndicator from './HealthIndicator';
 
 interface Props {
   item: MaintenanceItemWithHealth;
   onPress: () => void;
+  onLongPress?: () => void;
 }
 
-export default function MaintenanceItemRow({ item, onPress }: Props) {
-  const hoursText = item.hoursRemaining <= 0
-    ? `OVERDUE by ${Math.abs(item.hoursRemaining).toFixed(1)} hrs`
-    : `${item.hoursRemaining.toFixed(1)} hrs remaining`;
+export default function MaintenanceItemRow({ item, onPress, onLongPress }: Props) {
+  const trackOnly = item.interval_hours <= 0;
+  const color = HEALTH_COLORS[item.health];
+
+  let hoursText: string;
+  if (trackOnly) {
+    hoursText = item.last_done_hours > 0 ? `Done @ ${item.last_done_hours.toFixed(1)} hrs` : 'Not yet logged';
+  } else if (item.hoursRemaining <= 0) {
+    hoursText = `OVERDUE by ${Math.abs(item.hoursRemaining).toFixed(1)} hrs`;
+  } else {
+    hoursText = `${item.hoursRemaining.toFixed(1)} hrs left`;
+  }
+
+  const fillPercent = Math.max(0, Math.min(100, item.percentRemaining));
 
   return (
-    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
-      <View style={[styles.colorBar, { backgroundColor: HEALTH_COLORS[item.health] }]} />
-      <View style={styles.content}>
-        <View style={styles.topRow}>
-          <HealthIndicator status={item.health} />
-          <Text style={styles.name}>{item.name}</Text>
-        </View>
-        <Text style={[styles.status, { color: HEALTH_COLORS[item.health] }]}>
-          {hoursText}
-        </Text>
-        <Text style={styles.interval}>Every {item.interval_hours} hrs</Text>
+    <TouchableOpacity
+      style={styles.row}
+      onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={500}
+      activeOpacity={0.7}
+    >
+      <View style={styles.topLine}>
+        <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
+        <Text style={[styles.hoursText, { color: trackOnly ? '#999' : color }]}>{hoursText}</Text>
       </View>
+      {!trackOnly && (
+        <View style={styles.barTrack}>
+          <View style={[styles.barFill, { width: `${fillPercent}%`, backgroundColor: color }]} />
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   row: {
-    flexDirection: 'row', backgroundColor: '#fff',
-    marginHorizontal: 16, marginVertical: 4, borderRadius: 8,
-    overflow: 'hidden', elevation: 1,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 2,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
   },
-  colorBar: { width: 4 },
-  content: { flex: 1, padding: 12 },
-  topRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  name: { fontSize: 15, fontWeight: '600' },
-  status: { fontSize: 13, fontWeight: '500', marginBottom: 2 },
-  interval: { fontSize: 12, color: '#999' },
+  topLine: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  name: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    flex: 1,
+    marginRight: 8,
+  },
+  hoursText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  barTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#e8e8e8',
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: 6,
+    borderRadius: 3,
+  },
 });
