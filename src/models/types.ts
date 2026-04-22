@@ -53,6 +53,16 @@ export interface UserProfile {
   updated_at: string;
 }
 
+export interface VehicleNote {
+  id: number;
+  vehicle_id: number;
+  title: string;
+  content: string;
+  pinned: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export type HealthStatus = 'green' | 'yellow' | 'red';
 
 export interface MaintenanceItemWithHealth extends MaintenanceItem {
@@ -69,5 +79,7 @@ export type RootStackParamList = {
   MarkDone: { vehicleId: number; itemId: number };
   MaintenanceHistory: { vehicleId: number };
   ExpertView: { vehicleId: number };
+  VehicleNotes: { vehicleId: number };
+  EditNote: { vehicleId: number; noteId: number };
   Profile: undefined;
 };

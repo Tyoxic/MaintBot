@@ -8,16 +8,18 @@ import {
   MaintenanceLogEntry,
   RideLogEntry,
   UserProfile,
+  VehicleNote,
 } from '../models/types';
 
 interface BackupData {
-  version: 1;
+  version: 1 | 2;
   exportedAt: string;
   profile: UserProfile | null;
   vehicles: Vehicle[];
   maintenanceItems: MaintenanceItem[];
   maintenanceLog: MaintenanceLogEntry[];
   rideLog: RideLogEntry[];
+  vehicleNotes?: VehicleNote[];
 }
 
 export async function exportData(): Promise<void> {
@@ -28,15 +30,17 @@ export async function exportData(): Promise<void> {
   const maintenanceItems = await db.getAllAsync<MaintenanceItem>('SELECT * FROM maintenance_items');
   const maintenanceLog = await db.getAllAsync<MaintenanceLogEntry>('SELECT * FROM maintenance_log');
   const rideLog = await db.getAllAsync<RideLogEntry>('SELECT * FROM ride_log');
+  const vehicleNotes = await db.getAllAsync<VehicleNote>('SELECT * FROM vehicle_notes');
 
   const data: BackupData = {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     profile,
     vehicles,
     maintenanceItems,
     maintenanceLog,
     rideLog,
+    vehicleNotes,
   };
 
   const json = JSON.stringify(data, null, 2);
@@ -56,6 +60,7 @@ export interface ImportSummary {
   maintenanceItems: number;
   maintenanceLog: number;
   rideLog: number;
+  vehicleNotes: number;
 }
 
 function isNonNegativeNumber(value: unknown): value is number {
@@ -67,15 +72,24 @@ function validateBackupData(raw: unknown): BackupData {
     throw new Error('Backup file is empty or not an object');
   }
   const data = raw as Record<string, unknown>;
-  if (data.version !== 1) {
+  if (data.version !== 1 && data.version !== 2) {
     throw new Error(`Unsupported backup version: ${String(data.version)}`);
   }
 
-  const arrays: (keyof BackupData)[] = ['vehicles', 'maintenanceItems', 'maintenanceLog', 'rideLog'];
-  for (const key of arrays) {
+  const requiredArrays: (keyof BackupData)[] = [
+    'vehicles',
+    'maintenanceItems',
+    'maintenanceLog',
+    'rideLog',
+  ];
+  for (const key of requiredArrays) {
     if (!Array.isArray(data[key])) {
       throw new Error(`Backup missing or invalid "${key}" array`);
     }
+  }
+
+  if (data.vehicleNotes !== undefined && !Array.isArray(data.vehicleNotes)) {
+    throw new Error('Backup "vehicleNotes" must be an array when present');
   }
 
   const vehicles = data.vehicles as unknown[];
@@ -121,6 +135,7 @@ async function importData(data: BackupData): Promise<ImportSummary> {
 
   await db.withTransactionAsync(async () => {
     // Clear existing data (order matters for foreign keys)
+    await db.runAsync('DELETE FROM vehicle_notes');
     await db.runAsync('DELETE FROM maintenance_log');
     await db.runAsync('DELETE FROM ride_log');
     await db.runAsync('DELETE FROM maintenance_items');
@@ -178,6 +193,18 @@ async function importData(data: BackupData): Promise<ImportSummary> {
         rl.notes, rl.logged_at
       );
     }
+
+    // Import vehicle notes (v2+ backups)
+    if (data.vehicleNotes) {
+      for (const n of data.vehicleNotes) {
+        await db.runAsync(
+          `INSERT INTO vehicle_notes (id, vehicle_id, title, content, pinned, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          n.id, n.vehicle_id, n.title, n.content,
+          n.pinned ? 1 : 0, n.created_at, n.updated_at
+        );
+      }
+    }
   });
 
   return {
@@ -185,5 +212,6 @@ async function importData(data: BackupData): Promise<ImportSummary> {
     maintenanceItems: data.maintenanceItems.length,
     maintenanceLog: data.maintenanceLog.length,
     rideLog: data.rideLog.length,
+    vehicleNotes: data.vehicleNotes?.length ?? 0,
   };
 }

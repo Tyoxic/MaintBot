@@ -69,5 +69,19 @@ async function runMigrations(database: SQLite.SQLiteDatabase) {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS vehicle_notes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      vehicle_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL DEFAULT '',
+      pinned INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_vehicle_notes_vehicle
+      ON vehicle_notes(vehicle_id);
   `);
 }
