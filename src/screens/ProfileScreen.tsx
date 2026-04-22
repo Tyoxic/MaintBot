@@ -13,6 +13,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
+import * as WebBrowser from 'expo-web-browser';
 import { RootStackParamList } from '../models/types';
 import { getProfile, saveProfile } from '../db/profile';
 import { exportData, pickAndImportData } from '../utils/backup';
@@ -29,6 +30,7 @@ export default function ProfileScreen({ navigation }: Props) {
   const [importing, setImporting] = useState(false);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [sendingReport, setSendingReport] = useState(false);
+  const [openingBrowser, setOpeningBrowser] = useState(false);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
   const insets = useSafeAreaInsets();
 
@@ -99,6 +101,17 @@ export default function ProfileScreen({ navigation }: Props) {
       Alert.alert('Error', 'Failed to check for updates. Check your connection and try again.');
     } finally {
       setCheckingUpdate(false);
+    }
+  }, []);
+
+  const handleDownloadLatestApk = useCallback(async () => {
+    setOpeningBrowser(true);
+    try {
+      await WebBrowser.openBrowserAsync('https://github.com/Tyoxic/MaintBot/releases/latest');
+    } catch {
+      Alert.alert('Error', 'Failed to open browser. Visit github.com/Tyoxic/MaintBot/releases/latest to download.');
+    } finally {
+      setOpeningBrowser(false);
     }
   }, []);
 
@@ -211,6 +224,21 @@ export default function ProfileScreen({ navigation }: Props) {
             <Text style={styles.primaryBtnText}>Check for Updates</Text>
           )}
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.outlineBtn, openingBrowser && styles.disabledBtn]}
+          onPress={handleDownloadLatestApk}
+          disabled={openingBrowser}
+        >
+          {openingBrowser ? (
+            <ActivityIndicator color="#2196F3" size="small" />
+          ) : (
+            <Text style={styles.outlineBtnText}>Download Latest APK</Text>
+          )}
+        </TouchableOpacity>
+        <Text style={styles.helperText}>
+          "Check for Updates" pulls silent JS updates. Use "Download Latest APK" only
+          when a new installable version is announced (native changes).
+        </Text>
       </View>
 
       <Text style={styles.sectionHeader}>Help & Feedback</Text>
