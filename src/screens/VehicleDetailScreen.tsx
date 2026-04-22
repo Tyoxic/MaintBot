@@ -8,11 +8,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { RootStackParamList, Vehicle, MaintenanceItemWithHealth } from '../models/types';
 import { getVehicle } from '../db/vehicles';
-import { getMaintenanceItems, createCustomItem, deleteMaintenanceItem } from '../db/maintenanceItems';
+import {
+  getMaintenanceItems,
+  createCustomItem,
+  deleteMaintenanceItem,
+  getMissingDefaultItems,
+  addDefaultItems,
+  dismissDefaultItems,
+  DefaultItemSuggestion,
+} from '../db/maintenanceItems';
 import { computeHealth, worstHealth, HEALTH_COLORS } from '../utils/colors';
 import MaintenanceItemRow from '../components/MaintenanceItemRow';
 import HealthIndicator from '../components/HealthIndicator';
 import ConfirmModal from '../components/ConfirmModal';
+import MissingDefaultsModal from '../components/MissingDefaultsModal';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'VehicleDetail'>;
 
@@ -24,6 +33,8 @@ export default function VehicleDetailScreen({ navigation, route }: Props) {
   const [newItemName, setNewItemName] = useState('');
   const [newItemInterval, setNewItemInterval] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<MaintenanceItemWithHealth | null>(null);
+  const [missingDefaults, setMissingDefaults] = useState<DefaultItemSuggestion[]>([]);
+  const [showDefaultsModal, setShowDefaultsModal] = useState(false);
   const insets = useSafeAreaInsets();
 
   const refresh = useCallback(async () => {
@@ -33,9 +44,18 @@ export default function VehicleDetailScreen({ navigation, route }: Props) {
       const rawItems = await getMaintenanceItems(vehicleId);
       const withHealth = rawItems.map((i) => computeHealth(i, v.current_hours));
       setItems(withHealth);
+      const missing = await getMissingDefaultItems(vehicleId);
+      setMissingDefaults(missing);
       navigation.setOptions({ title: v.name });
     }
   }, [vehicleId, navigation]);
+
+  const handleApplyDefaults = useCallback(async (toAdd: string[], toDismiss: string[]) => {
+    await addDefaultItems(vehicleId, toAdd);
+    await dismissDefaultItems(vehicleId, toDismiss);
+    setShowDefaultsModal(false);
+    await refresh();
+  }, [vehicleId, refresh]);
 
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
@@ -145,6 +165,23 @@ export default function VehicleDetailScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         </View>
 
+        {missingDefaults.length > 0 && (
+          <TouchableOpacity
+            style={styles.suggestionBanner}
+            onPress={() => setShowDefaultsModal(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.suggestionIcon}>✨</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.suggestionTitle}>
+                {missingDefaults.length} recommended {missingDefaults.length === 1 ? 'item' : 'items'} available
+              </Text>
+              <Text style={styles.suggestionSubtitle}>Tap to review and add to this vehicle</Text>
+            </View>
+            <Text style={styles.suggestionChevron}>›</Text>
+          </TouchableOpacity>
+        )}
+
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Maintenance Items</Text>
           <TouchableOpacity onPress={() => setShowAddItem(!showAddItem)}>
@@ -204,6 +241,13 @@ export default function VehicleDetailScreen({ navigation, route }: Props) {
         onCancel={() => setDeleteTarget(null)}
         destructive
       />
+
+      <MissingDefaultsModal
+        visible={showDefaultsModal}
+        suggestions={missingDefaults}
+        onApply={handleApplyDefaults}
+        onCancel={() => setShowDefaultsModal(false)}
+      />
     </View>
   );
 }
@@ -231,6 +275,22 @@ const styles = StyleSheet.create({
   actionBtn: { alignItems: 'center', paddingVertical: 8, paddingHorizontal: 20 },
   actionIcon: { fontSize: 24, marginBottom: 4 },
   actionLabel: { fontSize: 12, color: '#555', fontWeight: '500' },
+  suggestionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E3F2FD',
+    marginHorizontal: 12,
+    marginTop: 4,
+    marginBottom: 8,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#90CAF9',
+  },
+  suggestionIcon: { fontSize: 20, marginRight: 10 },
+  suggestionTitle: { fontSize: 14, fontWeight: '600', color: '#0D47A1' },
+  suggestionSubtitle: { fontSize: 12, color: '#1565C0', marginTop: 2 },
+  suggestionChevron: { fontSize: 22, color: '#1565C0', fontWeight: '600', marginLeft: 6 },
   sectionHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 12,

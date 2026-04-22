@@ -83,5 +83,13 @@ async function runMigrations(database: SQLite.SQLiteDatabase) {
 
     CREATE INDEX IF NOT EXISTS idx_vehicle_notes_vehicle
       ON vehicle_notes(vehicle_id);
+
+    CREATE TABLE IF NOT EXISTS vehicle_default_dismissals (
+      vehicle_id INTEGER NOT NULL,
+      default_name TEXT NOT NULL,
+      dismissed_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (vehicle_id, default_name),
+      FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
+    );
   `);
 }

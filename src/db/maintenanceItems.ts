@@ -70,5 +70,77 @@ export async function updateMaintenanceItem(
 
 export async function deleteMaintenanceItem(id: number): Promise<void> {
   const db = await getDatabase();
+  const item = await db.getFirstAsync<MaintenanceItem>(
+    'SELECT * FROM maintenance_items WHERE id = ?',
+    id
+  );
   await db.runAsync('DELETE FROM maintenance_items WHERE id = ?', id);
+  // If deleting a default item, dismiss so it isn't re-suggested
+  if (item && item.is_custom === 0) {
+    await dismissDefaultItems(item.vehicle_id, [item.name]);
+  }
+}
+
+export interface DefaultItemSuggestion {
+  name: string;
+  interval_hours: number;
+  sort_order: number;
+}
+
+export async function getMissingDefaultItems(
+  vehicleId: number
+): Promise<DefaultItemSuggestion[]> {
+  const db = await getDatabase();
+  const existingItems = await db.getAllAsync<{ name: string }>(
+    'SELECT name FROM maintenance_items WHERE vehicle_id = ?',
+    vehicleId
+  );
+  const dismissed = await db.getAllAsync<{ default_name: string }>(
+    'SELECT default_name FROM vehicle_default_dismissals WHERE vehicle_id = ?',
+    vehicleId
+  );
+  const existingLower = new Set(existingItems.map((i) => i.name.trim().toLowerCase()));
+  const dismissedLower = new Set(dismissed.map((d) => d.default_name.trim().toLowerCase()));
+  return DEFAULT_MAINTENANCE_ITEMS.filter((d) => {
+    const key = d.name.trim().toLowerCase();
+    return !existingLower.has(key) && !dismissedLower.has(key);
+  });
+}
+
+export async function addDefaultItems(
+  vehicleId: number,
+  names: string[]
+): Promise<void> {
+  if (names.length === 0) return;
+  const db = await getDatabase();
+  const wantedLower = new Set(names.map((n) => n.trim().toLowerCase()));
+  const matches = DEFAULT_MAINTENANCE_ITEMS.filter((d) =>
+    wantedLower.has(d.name.trim().toLowerCase())
+  );
+  for (const item of matches) {
+    await db.runAsync(
+      `INSERT INTO maintenance_items (vehicle_id, name, interval_hours, last_done_hours, is_custom, sort_order)
+       VALUES (?, ?, ?, 0, 0, ?)`,
+      vehicleId,
+      item.name,
+      item.interval_hours,
+      item.sort_order
+    );
+  }
+}
+
+export async function dismissDefaultItems(
+  vehicleId: number,
+  names: string[]
+): Promise<void> {
+  if (names.length === 0) return;
+  const db = await getDatabase();
+  for (const name of names) {
+    await db.runAsync(
+      `INSERT OR IGNORE INTO vehicle_default_dismissals (vehicle_id, default_name)
+       VALUES (?, ?)`,
+      vehicleId,
+      name.trim()
+    );
+  }
 }
