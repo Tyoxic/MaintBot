@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, StyleSheet, ScrollView,
-  TouchableOpacity, Alert, Image, Platform,
+  TouchableOpacity, Alert, Image, Platform, KeyboardAvoidingView,
+  type NativeSyntheticEvent, type TextInputFocusEventData,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { format, parseISO } from 'date-fns';
 import { RootStackParamList, VehicleType } from '../models/types';
 import { createVehicle, getVehicle, updateVehicle, deleteVehicle } from '../db/vehicles';
@@ -12,6 +14,7 @@ import { seedDefaultItems } from '../db/maintenanceItems';
 import { VEHICLE_TYPES } from '../utils/constants';
 import { scheduleRegExpiryReminders, cancelRegReminders, requestNotificationPermissions } from '../utils/notifications';
 import ConfirmModal from '../components/ConfirmModal';
+import { persistVehiclePhoto, deleteVehiclePhoto } from '../utils/imageStorage';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddEditVehicle'>;
 
@@ -29,6 +32,22 @@ export default function AddEditVehicleScreen({ navigation, route }: Props) {
   const [currentHours, setCurrentHours] = useState('0');
   const [regExpiry, setRegExpiry] = useState('');
   const [showDelete, setShowDelete] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const fieldPositions = useRef<Record<string, number>>({});
+
+  const trackLayout = (field: string) => (event: any) => {
+    fieldPositions.current[field] = event.nativeEvent.layout.y;
+  };
+
+  const scrollToField = (field: string) => () => {
+    setTimeout(() => {
+      const y = fieldPositions.current[field];
+      if (y !== undefined) {
+        scrollRef.current?.scrollTo({ y: Math.max(0, y - 20), animated: true });
+      }
+    }, 250);
+  };
 
   useEffect(() => {
     if (isEdit && vehicleId) {
@@ -70,7 +89,15 @@ export default function AddEditVehicleScreen({ navigation, route }: Props) {
       quality: 0.7,
     });
     if (!result.canceled) {
-      setPhotoUri(result.assets[0].uri);
+      try {
+        const persistedUri = persistVehiclePhoto(result.assets[0].uri);
+        if (photoUri) {
+          deleteVehiclePhoto(photoUri);
+        }
+        setPhotoUri(persistedUri);
+      } catch {
+        Alert.alert('Error', 'Failed to save photo. Try again.');
+      }
     }
   };
 
@@ -81,7 +108,6 @@ export default function AddEditVehicleScreen({ navigation, route }: Props) {
       return;
     }
 
-    // Validate date format if provided
     const trimmedExpiry = regExpiry.trim();
     if (trimmedExpiry && !/^\d{4}-\d{2}-\d{2}$/.test(trimmedExpiry)) {
       Alert.alert('Invalid date', 'Registration expiry must be YYYY-MM-DD format.');
@@ -126,93 +152,135 @@ export default function AddEditVehicleScreen({ navigation, route }: Props) {
     if (vehicleId) {
       await cancelRegReminders(vehicleId);
       await deleteVehicle(vehicleId);
+      if (photoUri) {
+        deleteVehiclePhoto(photoUri);
+      }
       setShowDelete(false);
       navigation.popTo('Garage');
     }
   };
 
+  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowDatePicker(false);
+    if (event.type === 'set' && selectedDate) {
+      setRegExpiry(format(selectedDate, 'yyyy-MM-dd'));
+    }
+  };
+
+  const datePickerValue = regExpiry ? parseISO(regExpiry) : new Date();
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <TouchableOpacity style={styles.photoArea} onPress={pickImage}>
-        {photoUri ? (
-          <Image source={{ uri: photoUri }} style={styles.photo} />
-        ) : (
-          <View style={styles.photoPlaceholder}>
-            <Text style={styles.photoIcon}>📷</Text>
-            <Text style={styles.photoText}>Add Photo</Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+    >
+      <ScrollView
+        ref={scrollRef}
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        <TouchableOpacity style={styles.photoArea} onPress={pickImage}>
+          {photoUri ? (
+            <Image source={{ uri: photoUri }} style={styles.photo} />
+          ) : (
+            <View style={styles.photoPlaceholder}>
+              <Text style={styles.photoIcon}>📷</Text>
+              <Text style={styles.photoText}>Add Photo</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
+        <View onLayout={trackLayout('name')}>
+          <Text style={styles.label}>Name *</Text>
+          <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="e.g. YZ250F" onFocus={scrollToField('name')} selectTextOnFocus />
+        </View>
+
+        <View style={styles.row} onLayout={trackLayout('yearMake')}>
+          <View style={styles.rowItem}>
+            <Text style={styles.label}>Year</Text>
+            <TextInput style={styles.input} value={year} onChangeText={setYear} placeholder="2024" keyboardType="number-pad" maxLength={4} onFocus={scrollToField('yearMake')} selectTextOnFocus />
           </View>
-        )}
-      </TouchableOpacity>
-
-      <Text style={styles.label}>Name *</Text>
-      <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="e.g. YZ250F" />
-
-      <View style={styles.row}>
-        <View style={styles.rowItem}>
-          <Text style={styles.label}>Year</Text>
-          <TextInput style={styles.input} value={year} onChangeText={setYear} placeholder="2024" keyboardType="number-pad" maxLength={4} />
+          <View style={styles.rowItem}>
+            <Text style={styles.label}>Make</Text>
+            <TextInput style={styles.input} value={make} onChangeText={setMake} placeholder="Yamaha" onFocus={scrollToField('yearMake')} selectTextOnFocus />
+          </View>
         </View>
-        <View style={styles.rowItem}>
-          <Text style={styles.label}>Make</Text>
-          <TextInput style={styles.input} value={make} onChangeText={setMake} placeholder="Yamaha" />
+
+        <View onLayout={trackLayout('model')}>
+          <Text style={styles.label}>Model</Text>
+          <TextInput style={styles.input} value={model} onChangeText={setModel} placeholder="YZ250F" onFocus={scrollToField('model')} selectTextOnFocus />
         </View>
-      </View>
 
-      <Text style={styles.label}>Model</Text>
-      <TextInput style={styles.input} value={model} onChangeText={setModel} placeholder="YZ250F" />
+        <Text style={styles.label}>Type</Text>
+        <View style={styles.typeRow}>
+          {VEHICLE_TYPES.map((t) => (
+            <TouchableOpacity
+              key={t.value}
+              style={[styles.typeChip, type === t.value && styles.typeChipActive]}
+              onPress={() => setType(t.value as VehicleType)}
+            >
+              <Text style={[styles.typeChipText, type === t.value && styles.typeChipTextActive]}>
+                {t.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-      <Text style={styles.label}>Type</Text>
-      <View style={styles.typeRow}>
-        {VEHICLE_TYPES.map((t) => (
-          <TouchableOpacity
-            key={t.value}
-            style={[styles.typeChip, type === t.value && styles.typeChipActive]}
-            onPress={() => setType(t.value as VehicleType)}
-          >
-            <Text style={[styles.typeChipText, type === t.value && styles.typeChipTextActive]}>
-              {t.label}
-            </Text>
+        <View onLayout={trackLayout('vin')}>
+          <Text style={styles.label}>VIN</Text>
+          <TextInput style={styles.input} value={vin} onChangeText={setVin} placeholder="Optional" autoCapitalize="characters" onFocus={scrollToField('vin')} selectTextOnFocus />
+        </View>
+
+        <View onLayout={trackLayout('hours')}>
+          <Text style={styles.label}>Current Hours</Text>
+          <TextInput style={styles.input} value={currentHours} onChangeText={setCurrentHours} keyboardType="decimal-pad" placeholder="0" onFocus={scrollToField('hours')} selectTextOnFocus />
+        </View>
+
+        <Text style={styles.label}>Registration Expiry</Text>
+        <TouchableOpacity style={styles.dateBtn} onPress={() => setShowDatePicker(true)}>
+          <Text style={[styles.dateBtnText, !regExpiry && styles.dateBtnPlaceholder]}>
+            {regExpiry ? format(parseISO(regExpiry), 'MMM d, yyyy') : 'Tap to select date'}
+          </Text>
+        </TouchableOpacity>
+        {regExpiry ? (
+          <TouchableOpacity onPress={() => setRegExpiry('')}>
+            <Text style={styles.clearDate}>Clear date</Text>
           </TouchableOpacity>
-        ))}
-      </View>
+        ) : null}
+        <Text style={styles.hint}>You'll get reminders at 30 days, 7 days, and day of expiry</Text>
 
-      <Text style={styles.label}>VIN</Text>
-      <TextInput style={styles.input} value={vin} onChangeText={setVin} placeholder="Optional" autoCapitalize="characters" />
+        {showDatePicker && (
+          <DateTimePicker
+            value={datePickerValue}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={handleDateChange}
+          />
+        )}
 
-      <Text style={styles.label}>Current Hours</Text>
-      <TextInput style={styles.input} value={currentHours} onChangeText={setCurrentHours} keyboardType="decimal-pad" placeholder="0" />
+        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+          <Text style={styles.saveBtnText}>{isEdit ? 'Save Changes' : 'Add Vehicle'}</Text>
+        </TouchableOpacity>
 
-      <Text style={styles.label}>Registration Expiry</Text>
-      <TextInput
-        style={styles.input}
-        value={regExpiry}
-        onChangeText={setRegExpiry}
-        placeholder="YYYY-MM-DD"
-        maxLength={10}
-        keyboardType="number-pad"
-      />
-      <Text style={styles.hint}>You'll get reminders at 30 days, 7 days, and day of expiry</Text>
-
-      <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-        <Text style={styles.saveBtnText}>{isEdit ? 'Save Changes' : 'Add Vehicle'}</Text>
-      </TouchableOpacity>
-
-      <ConfirmModal
-        visible={showDelete}
-        title="Delete Vehicle"
-        message="This will permanently delete this vehicle and all its maintenance data. This cannot be undone."
-        confirmLabel="Delete"
-        onConfirm={handleDelete}
-        onCancel={() => setShowDelete(false)}
-        destructive
-      />
-    </ScrollView>
+        <ConfirmModal
+          visible={showDelete}
+          title="Delete Vehicle"
+          message="This will permanently delete this vehicle and all its maintenance data. This cannot be undone."
+          confirmLabel="Delete"
+          onConfirm={handleDelete}
+          onCancel={() => setShowDelete(false)}
+          destructive
+        />
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  content: { padding: 16 },
+  content: { padding: 16, paddingBottom: 200 },
   photoArea: { alignSelf: 'center', marginBottom: 20 },
   photo: { width: 120, height: 120, borderRadius: 60 },
   photoPlaceholder: {
@@ -234,6 +302,13 @@ const styles = StyleSheet.create({
   typeChipActive: { backgroundColor: '#2196F3' },
   typeChipText: { fontSize: 13, color: '#555', fontWeight: '500' },
   typeChipTextActive: { color: '#fff' },
+  dateBtn: {
+    backgroundColor: '#fff', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 14,
+    borderWidth: 1, borderColor: '#e0e0e0',
+  },
+  dateBtnText: { fontSize: 15, color: '#333' },
+  dateBtnPlaceholder: { color: '#aaa' },
+  clearDate: { fontSize: 13, color: '#F44336', marginTop: 6, fontWeight: '500' },
   saveBtn: {
     backgroundColor: '#2196F3', borderRadius: 8, paddingVertical: 14,
     alignItems: 'center', marginTop: 24, marginBottom: 32,

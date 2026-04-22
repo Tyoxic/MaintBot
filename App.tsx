@@ -4,6 +4,9 @@ import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { getDatabase } from './src/db/database';
 import RootNavigator from './src/navigation/RootNavigator';
+import { initErrorLog } from './src/utils/errorLog';
+
+initErrorLog();
 
 export default function App() {
   const [dbReady, setDbReady] = useState(false);

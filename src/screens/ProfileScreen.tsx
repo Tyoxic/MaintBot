@@ -11,9 +11,11 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 import { RootStackParamList } from '../models/types';
 import { getProfile, saveProfile } from '../db/profile';
 import { exportData, pickAndImportData } from '../utils/backup';
+import { sendBugReport } from '../utils/bugReport';
 import ConfirmModal from '../components/ConfirmModal';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
@@ -24,6 +26,8 @@ export default function ProfileScreen({ navigation }: Props) {
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [sendingReport, setSendingReport] = useState(false);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
 
   useEffect(() => {
@@ -59,6 +63,54 @@ export default function ProfileScreen({ navigation }: Props) {
     }
   }, []);
 
+  const handleCheckForUpdates = useCallback(async () => {
+    if (__DEV__) {
+      Alert.alert('Dev Mode', 'Updates are only available in production builds.');
+      return;
+    }
+    setCheckingUpdate(true);
+    try {
+      const result = await Updates.checkForUpdateAsync();
+      if (!result.isAvailable) {
+        Alert.alert('Up to Date', 'You are running the latest version.');
+        return;
+      }
+      Alert.alert(
+        'Update Available',
+        'A new version of MaintBot is ready. Install now? The app will restart.',
+        [
+          { text: 'Later', style: 'cancel' },
+          {
+            text: 'Install',
+            onPress: async () => {
+              try {
+                await Updates.fetchUpdateAsync();
+                await Updates.reloadAsync();
+              } catch {
+                Alert.alert('Error', 'Failed to install update. Try again later.');
+              }
+            },
+          },
+        ]
+      );
+    } catch {
+      Alert.alert('Error', 'Failed to check for updates. Check your connection and try again.');
+    } finally {
+      setCheckingUpdate(false);
+    }
+  }, []);
+
+  const handleSendBugReport = useCallback(async () => {
+    setSendingReport(true);
+    try {
+      await sendBugReport();
+    } catch {
+      Alert.alert('Error', 'Failed to open email composer.');
+    } finally {
+      setSendingReport(false);
+    }
+  }, []);
+
   const handleImport = useCallback(async () => {
     setShowImportConfirm(false);
     setImporting(true);
@@ -79,6 +131,9 @@ export default function ProfileScreen({ navigation }: Props) {
   }, [navigation]);
 
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
+  const updateTag = Updates.updateId
+    ? `ota:${Updates.updateId.slice(0, 8)}`
+    : 'embedded';
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -141,7 +196,41 @@ export default function ProfileScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.versionText}>MaintBot v{appVersion}</Text>
+      <Text style={styles.sectionHeader}>App Updates</Text>
+      <View style={styles.card}>
+        <TouchableOpacity
+          style={[styles.primaryBtn, checkingUpdate && styles.disabledBtn]}
+          onPress={handleCheckForUpdates}
+          disabled={checkingUpdate}
+        >
+          {checkingUpdate ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Text style={styles.primaryBtnText}>Check for Updates</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.sectionHeader}>Help & Feedback</Text>
+      <View style={styles.card}>
+        <TouchableOpacity
+          style={[styles.primaryBtn, sendingReport && styles.disabledBtn]}
+          onPress={handleSendBugReport}
+          disabled={sendingReport}
+        >
+          {sendingReport ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Text style={styles.primaryBtnText}>Send Bug Report</Text>
+          )}
+        </TouchableOpacity>
+        <Text style={styles.helperText}>
+          Opens your email app with a pre-filled message including device info,
+          app version, and recent error logs. You can review and edit before sending.
+        </Text>
+      </View>
+
+      <Text style={styles.versionText}>MaintBot v{appVersion} ({updateTag})</Text>
 
       <ConfirmModal
         visible={showImportConfirm}
@@ -208,6 +297,12 @@ const styles = StyleSheet.create({
   },
   outlineBtnText: { color: '#2196F3', fontSize: 16, fontWeight: '600' },
   disabledBtn: { opacity: 0.6 },
+  helperText: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 10,
+    lineHeight: 16,
+  },
   versionText: {
     textAlign: 'center',
     color: '#aaa',

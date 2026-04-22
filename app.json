@@ -17,6 +17,7 @@
     },
     "android": {
       "package": "com.maintbot.app",
+      "allowBackup": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -27,7 +28,19 @@
     },
     "plugins": [
       "expo-asset",
-      "expo-sqlite"
-    ]
+      "expo-sqlite",
+      "@react-native-community/datetimepicker"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "2f7ab4d8-938f-4fb1-85f6-5d70bcbfe308"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/2f7ab4d8-938f-4fb1-85f6-5d70bcbfe308"
+    }
   }
 }
