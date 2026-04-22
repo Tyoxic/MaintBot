@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList, MaintenanceItemWithHealth } from '../models/types';
@@ -68,7 +78,12 @@ export default function LogRideScreen({ navigation, route }: Props) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+    >
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]} keyboardShouldPersistTaps="handled">
       <View style={styles.currentBox}>
         <Text style={styles.currentLabel}>Current Hour Meter</Text>
         <Text style={styles.currentValue}>{currentHours.toFixed(1)} hrs</Text>
@@ -115,6 +130,7 @@ export default function LogRideScreen({ navigation, route }: Props) {
         <Text style={styles.saveBtnText}>Save Ride</Text>
       </TouchableOpacity>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

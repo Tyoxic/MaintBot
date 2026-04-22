@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, TextInput,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -112,8 +113,13 @@ export default function VehicleDetailScreen({ navigation, route }: Props) {
   const goodItems = sortedItems.filter((i) => i.health === 'green');
 
   return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+    >
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]}>
+      <ScrollView contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           {vehicle.photo_uri ? (
             <Image source={{ uri: vehicle.photo_uri }} style={styles.photo} />
@@ -249,6 +255,7 @@ export default function VehicleDetailScreen({ navigation, route }: Props) {
         onCancel={() => setShowDefaultsModal(false)}
       />
     </View>
+    </KeyboardAvoidingView>
   );
 }
 

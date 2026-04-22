@@ -9,6 +9,8 @@ import {
   Alert,
   ActivityIndicator,
   Share,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -185,7 +187,12 @@ export default function ProfileScreen({ navigation }: Props) {
     : 'embedded';
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+    >
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]} keyboardShouldPersistTaps="handled">
       <Text style={styles.sectionHeader}>Profile</Text>
       <View style={styles.card}>
         <Text style={styles.label}>Name</Text>
@@ -357,6 +364,7 @@ export default function ProfileScreen({ navigation }: Props) {
         destructive
       />
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -42,7 +42,7 @@ export default function CellEditModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <KeyboardAvoidingView
         style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
       >
         <View style={styles.dialog}>
           <Text style={styles.title}>{isExisting ? 'Edit Entry' : 'Add Entry'}</Text>

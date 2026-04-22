@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList, MaintenanceItem, Vehicle } from '../models/types';
@@ -48,7 +58,12 @@ export default function MarkDoneScreen({ navigation, route }: Props) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+    >
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]} keyboardShouldPersistTaps="handled">
       <View style={styles.card}>
         <Text style={styles.itemName}>{item.name}</Text>
         {!trackOnly && (
@@ -106,6 +121,7 @@ export default function MarkDoneScreen({ navigation, route }: Props) {
         <Text style={styles.confirmBtnText}>Mark as Done</Text>
       </TouchableOpacity>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
