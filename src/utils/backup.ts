@@ -58,6 +58,41 @@ export interface ImportSummary {
   rideLog: number;
 }
 
+function isNonNegativeNumber(value: unknown): value is number {
+  return typeof value === 'number' && isFinite(value) && value >= 0;
+}
+
+function validateBackupData(raw: unknown): BackupData {
+  if (!raw || typeof raw !== 'object') {
+    throw new Error('Backup file is empty or not an object');
+  }
+  const data = raw as Record<string, unknown>;
+  if (data.version !== 1) {
+    throw new Error(`Unsupported backup version: ${String(data.version)}`);
+  }
+
+  const arrays: (keyof BackupData)[] = ['vehicles', 'maintenanceItems', 'maintenanceLog', 'rideLog'];
+  for (const key of arrays) {
+    if (!Array.isArray(data[key])) {
+      throw new Error(`Backup missing or invalid "${key}" array`);
+    }
+  }
+
+  const vehicles = data.vehicles as unknown[];
+  for (const v of vehicles) {
+    if (!v || typeof v !== 'object') throw new Error('Vehicle entry malformed');
+    const vehicle = v as Record<string, unknown>;
+    if (typeof vehicle.id !== 'number' || typeof vehicle.name !== 'string') {
+      throw new Error('Vehicle entry missing id or name');
+    }
+    if (!isNonNegativeNumber(vehicle.current_hours)) {
+      throw new Error(`Vehicle "${vehicle.name}" has invalid current_hours`);
+    }
+  }
+
+  return data as unknown as BackupData;
+}
+
 export async function pickAndImportData(): Promise<ImportSummary | null> {
   const result = await DocumentPicker.getDocumentAsync({
     type: 'application/json',
@@ -70,12 +105,14 @@ export async function pickAndImportData(): Promise<ImportSummary | null> {
   const pickedFile = new File(fileUri);
   const json = await pickedFile.text();
 
-  const data: BackupData = JSON.parse(json);
-
-  if (data.version !== 1 || !Array.isArray(data.vehicles)) {
-    throw new Error('Invalid backup file format');
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    throw new Error('Backup file is not valid JSON');
   }
 
+  const data = validateBackupData(parsed);
   return importData(data);
 }
 

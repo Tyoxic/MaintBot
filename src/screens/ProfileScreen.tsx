@@ -121,7 +121,7 @@ export default function ProfileScreen({ navigation }: Props) {
       if (summary) {
         Alert.alert(
           'Import Complete',
-          `Imported ${summary.vehicles} vehicle(s), ${summary.maintenanceItems} maintenance item(s), ${summary.maintenanceLog} log entr(ies), ${summary.rideLog} ride(s).`,
+          `Imported ${summary.vehicles} vehicle(s), ${summary.maintenanceItems} maintenance item(s), ${summary.maintenanceLog} log entries, ${summary.rideLog} ride(s).`,
           [{ text: 'OK', onPress: () => navigation.navigate('Garage') }]
         );
       }

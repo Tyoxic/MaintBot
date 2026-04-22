@@ -7,6 +7,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { format, parseISO } from 'date-fns';
 import { RootStackParamList, MaintenanceItem, MaintenanceLogEntry } from '../models/types';
+import { getDatabase } from '../db/database';
 import { getVehicle } from '../db/vehicles';
 import { getMaintenanceItems, markItemDone } from '../db/maintenanceItems';
 import {
@@ -157,8 +158,7 @@ export default function ExpertViewScreen({ navigation, route }: Props) {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const database = (await import('../db/database')).getDatabase;
-            const db = await database();
+            const db = await getDatabase();
             await db.runAsync('DELETE FROM maintenance_log WHERE vehicle_id = ?', vehicleId);
             await db.runAsync('DELETE FROM ride_log WHERE vehicle_id = ?', vehicleId);
             await db.runAsync('DELETE FROM maintenance_items WHERE vehicle_id = ?', vehicleId);

@@ -114,6 +114,10 @@ export default function AddEditVehicleScreen({ navigation, route }: Props) {
       return;
     }
 
+    const parsedHours = parseFloat(currentHours);
+    const safeHours =
+      !isFinite(parsedHours) || parsedHours < 0 ? 0 : Math.min(parsedHours, 999999);
+
     const data = {
       name: trimmedName,
       year: year ? parseInt(year, 10) : null,
@@ -122,7 +126,7 @@ export default function AddEditVehicleScreen({ navigation, route }: Props) {
       type,
       vin: vin.trim(),
       photo_uri: photoUri,
-      current_hours: parseFloat(currentHours) || 0,
+      current_hours: safeHours,
       reg_expiry: trimmedExpiry || null,
     };
 

@@ -34,8 +34,12 @@ export default function MarkDoneScreen({ navigation, route }: Props) {
   const health = computeHealth(item, vehicle.current_hours);
 
   const handleConfirm = async () => {
-    if (parsedHours < 0) {
-      Alert.alert('Invalid hours', 'Hours at service cannot be negative.');
+    if (!isFinite(parsedHours) || parsedHours < 0) {
+      Alert.alert('Invalid hours', 'Hours at service must be zero or greater.');
+      return;
+    }
+    if (parsedHours > 999999) {
+      Alert.alert('Invalid hours', 'That value is unreasonably large. Please check your input.');
       return;
     }
     await markItemDone(itemId, parsedHours);

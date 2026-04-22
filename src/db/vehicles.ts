@@ -41,17 +41,32 @@ export async function getVehicle(id: number): Promise<Vehicle | null> {
   return db.getFirstAsync<Vehicle>('SELECT * FROM vehicles WHERE id = ?', id);
 }
 
+const ALLOWED_UPDATE_FIELDS: readonly (keyof CreateVehicleInput)[] = [
+  'name',
+  'year',
+  'make',
+  'model',
+  'type',
+  'vin',
+  'photo_uri',
+  'current_hours',
+  'reg_expiry',
+];
+
 export async function updateVehicle(id: number, input: Partial<CreateVehicleInput>): Promise<void> {
   const db = await getDatabase();
   const fields: string[] = [];
-  const values: any[] = [];
+  const values: (string | number | null)[] = [];
 
-  for (const [key, value] of Object.entries(input)) {
+  for (const key of ALLOWED_UPDATE_FIELDS) {
+    const value = input[key];
     if (value !== undefined) {
       fields.push(`${key} = ?`);
       values.push(value);
     }
   }
+
+  if (fields.length === 0) return;
 
   fields.push("updated_at = datetime('now')");
   values.push(id);

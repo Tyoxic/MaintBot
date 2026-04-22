@@ -44,8 +44,12 @@ export default function LogRideScreen({ navigation, route }: Props) {
 
   const handleSave = async () => {
     const hours = parseFloat(newHours);
-    if (isNaN(hours) || hours < currentHours) {
+    if (!isFinite(hours) || hours < currentHours) {
       Alert.alert('Invalid hours', `New reading must be at least ${currentHours.toFixed(1)}`);
+      return;
+    }
+    if (hours > 999999) {
+      Alert.alert('Invalid hours', 'New reading is unreasonably large. Please check your input.');
       return;
     }
 
