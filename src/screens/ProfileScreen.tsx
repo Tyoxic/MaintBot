@@ -295,10 +295,10 @@ export default function ProfileScreen({ navigation }: Props) {
           style={[
             styles.outlineBtn,
             apkStatus?.status === 'update-available' && styles.highlightBtn,
-            openingBrowser && styles.disabledBtn,
+            (openingBrowser || apkStatus?.status === 'up-to-date') && styles.disabledBtn,
           ]}
           onPress={handleDownloadLatestApk}
-          disabled={openingBrowser}
+          disabled={openingBrowser || apkStatus?.status === 'up-to-date'}
         >
           {openingBrowser ? (
             <ActivityIndicator color="#2196F3" size="small" />
@@ -311,6 +311,8 @@ export default function ProfileScreen({ navigation }: Props) {
             >
               {apkStatus?.status === 'update-available' && apkStatus.latestVersion
                 ? `Download v${apkStatus.latestVersion} →`
+                : apkStatus?.status === 'up-to-date'
+                ? 'Already on Latest APK'
                 : 'Download Latest APK'}
             </Text>
           )}
