@@ -19,6 +19,7 @@ import { RootStackParamList } from '../models/types';
 import { getProfile, saveProfile } from '../db/profile';
 import { exportData, pickAndImportData } from '../utils/backup';
 import { sendBugReport } from '../utils/bugReport';
+import { checkApkVersion, ApkStatus } from '../utils/apkVersion';
 import ConfirmModal from '../components/ConfirmModal';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
@@ -34,6 +35,8 @@ export default function ProfileScreen({ navigation }: Props) {
   const [openingBrowser, setOpeningBrowser] = useState(false);
   const [sharingLink, setSharingLink] = useState(false);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
+  const [apkStatus, setApkStatus] = useState<ApkStatus | null>(null);
+  const [checkingApk, setCheckingApk] = useState(false);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
@@ -45,6 +48,21 @@ export default function ProfileScreen({ navigation }: Props) {
       }
     })();
   }, []);
+
+  const runApkCheck = useCallback(async () => {
+    setCheckingApk(true);
+    try {
+      const status = await checkApkVersion();
+      setApkStatus(status);
+    } finally {
+      setCheckingApk(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (__DEV__) return;
+    runApkCheck();
+  }, [runApkCheck]);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
@@ -240,15 +258,54 @@ export default function ProfileScreen({ navigation }: Props) {
             <Text style={styles.primaryBtnText}>Check for Updates</Text>
           )}
         </TouchableOpacity>
+
+        {apkStatus && (
+          <TouchableOpacity
+            style={styles.apkStatusRow}
+            onPress={runApkCheck}
+            disabled={checkingApk}
+            activeOpacity={0.7}
+          >
+            {checkingApk ? (
+              <ActivityIndicator color="#888" size="small" />
+            ) : apkStatus.status === 'update-available' ? (
+              <Text style={styles.apkStatusUpdate}>
+                ⚠ New APK v{apkStatus.latestVersion} available (you have v{apkStatus.currentVersion}) — tap to recheck
+              </Text>
+            ) : apkStatus.status === 'up-to-date' ? (
+              <Text style={styles.apkStatusOk}>
+                ✓ APK is up to date (v{apkStatus.currentVersion}) — tap to recheck
+              </Text>
+            ) : (
+              <Text style={styles.apkStatusError}>
+                Couldn't check for APK updates — tap to retry
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
-          style={[styles.outlineBtn, openingBrowser && styles.disabledBtn]}
+          style={[
+            styles.outlineBtn,
+            apkStatus?.status === 'update-available' && styles.highlightBtn,
+            openingBrowser && styles.disabledBtn,
+          ]}
           onPress={handleDownloadLatestApk}
           disabled={openingBrowser}
         >
           {openingBrowser ? (
             <ActivityIndicator color="#2196F3" size="small" />
           ) : (
-            <Text style={styles.outlineBtnText}>Download Latest APK</Text>
+            <Text
+              style={[
+                styles.outlineBtnText,
+                apkStatus?.status === 'update-available' && styles.highlightBtnText,
+              ]}
+            >
+              {apkStatus?.status === 'update-available' && apkStatus.latestVersion
+                ? `Download v${apkStatus.latestVersion} →`
+                : 'Download Latest APK'}
+            </Text>
           )}
         </TouchableOpacity>
         <TouchableOpacity
@@ -354,6 +411,24 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   outlineBtnText: { color: '#2196F3', fontSize: 16, fontWeight: '600' },
+  highlightBtn: { borderColor: '#FF9800', backgroundColor: '#FFF3E0' },
+  highlightBtnText: { color: '#E65100' },
+  apkStatusRow: {
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    backgroundColor: '#fafafa',
+    alignItems: 'center',
+  },
+  apkStatusOk: { fontSize: 12, color: '#2e7d32', fontWeight: '500' },
+  apkStatusUpdate: {
+    fontSize: 12,
+    color: '#E65100',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  apkStatusError: { fontSize: 12, color: '#888', fontStyle: 'italic' },
   disabledBtn: { opacity: 0.6 },
   helperText: {
     fontSize: 12,
