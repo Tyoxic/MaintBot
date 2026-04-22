@@ -28,3 +28,22 @@ export async function getMaintenanceLogs(vehicleId: number): Promise<Maintenance
     vehicleId
   );
 }
+
+export async function updateMaintenanceLog(
+  logId: number,
+  hoursAtService: number,
+  notes: string
+): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    'UPDATE maintenance_log SET hours_at_service = ?, notes = ? WHERE id = ?',
+    hoursAtService,
+    notes,
+    logId
+  );
+}
+
+export async function deleteMaintenanceLog(logId: number): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync('DELETE FROM maintenance_log WHERE id = ?', logId);
+}
