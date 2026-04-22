@@ -89,43 +89,6 @@ export default function ProfileScreen({ navigation }: Props) {
     }
   }, []);
 
-  const handleCheckForUpdates = useCallback(async () => {
-    if (__DEV__) {
-      Alert.alert('Dev Mode', 'Updates are only available in production builds.');
-      return;
-    }
-    setCheckingUpdate(true);
-    try {
-      const result = await Updates.checkForUpdateAsync();
-      if (!result.isAvailable) {
-        Alert.alert('Up to Date', 'You are running the latest version.');
-        return;
-      }
-      Alert.alert(
-        'Update Available',
-        'A new version of MaintBot is ready. Install now? The app will restart.',
-        [
-          { text: 'Later', style: 'cancel' },
-          {
-            text: 'Install',
-            onPress: async () => {
-              try {
-                await Updates.fetchUpdateAsync();
-                await Updates.reloadAsync();
-              } catch {
-                Alert.alert('Error', 'Failed to install update. Try again later.');
-              }
-            },
-          },
-        ]
-      );
-    } catch {
-      Alert.alert('Error', 'Failed to check for updates. Check your connection and try again.');
-    } finally {
-      setCheckingUpdate(false);
-    }
-  }, []);
-
   const handleDownloadLatestApk = useCallback(async () => {
     setOpeningBrowser(true);
     try {
@@ -136,6 +99,63 @@ export default function ProfileScreen({ navigation }: Props) {
       setOpeningBrowser(false);
     }
   }, []);
+
+  const handleCheckForUpdates = useCallback(async () => {
+    if (__DEV__) {
+      Alert.alert('Dev Mode', 'Updates are only available in production builds.');
+      return;
+    }
+    setCheckingUpdate(true);
+    try {
+      const otaResult = await Updates.checkForUpdateAsync().catch(() => ({ isAvailable: false }));
+
+      if (otaResult.isAvailable) {
+        Alert.alert(
+          'Update Available',
+          'A new version of MaintBot is ready. Install now? The app will restart.',
+          [
+            { text: 'Later', style: 'cancel' },
+            {
+              text: 'Install',
+              onPress: async () => {
+                try {
+                  await Updates.fetchUpdateAsync();
+                  await Updates.reloadAsync();
+                } catch {
+                  Alert.alert('Error', 'Failed to install update. Try again later.');
+                }
+              },
+            },
+          ]
+        );
+        return;
+      }
+
+      // No OTA update — also check for a newer APK on GitHub Releases
+      const apk = await checkApkVersion();
+      setApkStatus(apk);
+      if (apk.status === 'update-available' && apk.latestVersion) {
+        Alert.alert(
+          'New APK Available',
+          `A new installable version (v${apk.latestVersion}) is available. You're on v${apk.currentVersion}. Tap "Open Releases Page" to download and install it.`,
+          [
+            { text: 'Later', style: 'cancel' },
+            {
+              text: 'Open Releases Page',
+              onPress: () => { handleDownloadLatestApk(); },
+            },
+          ]
+        );
+        return;
+      }
+
+      Alert.alert('Up to Date', 'You are running the latest version.');
+    } catch {
+      Alert.alert('Error', 'Failed to check for updates. Check your connection and try again.');
+    } finally {
+      setCheckingUpdate(false);
+    }
+  }, [handleDownloadLatestApk]);
 
   const handleShareInstallLink = useCallback(async () => {
     setSharingLink(true);
