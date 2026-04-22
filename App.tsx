@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Alert, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
+import * as Updates from 'expo-updates';
 import { getDatabase } from './src/db/database';
 import RootNavigator from './src/navigation/RootNavigator';
 import ErrorBoundary from './src/components/ErrorBoundary';
@@ -19,6 +20,8 @@ function getActiveRouteName(state: any): string | undefined {
 export default function App() {
   const [dbReady, setDbReady] = useState(false);
   const lastRouteRef = useRef<string | undefined>(undefined);
+  const updatePromptShownRef = useRef(false);
+  const { isUpdatePending } = Updates.useUpdates();
 
   useEffect(() => {
     (async () => {
@@ -31,6 +34,30 @@ export default function App() {
       setDbReady(true);
     })();
   }, []);
+
+  useEffect(() => {
+    if (!isUpdatePending || updatePromptShownRef.current || __DEV__) return;
+    updatePromptShownRef.current = true;
+    addBreadcrumb('updates', 'Update downloaded, prompting to apply');
+    Alert.alert(
+      'Update Ready',
+      'A new version of MaintBot has been downloaded. Restart now to apply it?',
+      [
+        { text: 'Later', style: 'cancel' },
+        {
+          text: 'Restart',
+          onPress: async () => {
+            addBreadcrumb('updates', 'User accepted update, reloading');
+            try {
+              await Updates.reloadAsync();
+            } catch {
+              Alert.alert('Error', 'Failed to restart. Please close and reopen the app.');
+            }
+          },
+        },
+      ]
+    );
+  }, [isUpdatePending]);
 
   if (!dbReady) {
     return (

@@ -36,7 +36,15 @@
           "icon": "./assets/icon.png",
           "color": "#2196F3"
         }
-      ]
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "MaintBot needs camera access so you can take photos of your vehicles.",
+          "recordAudioAndroid": false
+        }
+      ],
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {
@@ -47,7 +55,9 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/2f7ab4d8-938f-4fb1-85f6-5d70bcbfe308"
+      "url": "https://u.expo.dev/2f7ab4d8-938f-4fb1-85f6-5d70bcbfe308",
+      "fallbackToCacheTimeout": 5000,
+      "checkAutomatically": "ON_LOAD"
     }
   }
 }
