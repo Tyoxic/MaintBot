@@ -41,8 +41,10 @@
       <li>App version and update ID</li>
       <li>Device platform (Android/iOS), OS version, and device name</li>
       <li>Number of vehicles and maintenance log entries in your app (counts only — no vehicle names, hours, or personal details)</li>
-      <li>Recent JavaScript error messages captured during the current session</li>
+      <li>Recent JavaScript error messages from the current session, and (if available) from the previous session if the app crashed</li>
+      <li>A list of recent in-app actions and screens visited ("breadcrumbs") to help reproduce bugs — for example "Navigated to VehicleDetail"</li>
     </ul>
+    <p>To make these reports useful after a crash, MaintBot stores a small log file (<code>error_log.json</code>) in the app's private storage area on your device. This file contains only the error messages and breadcrumb entries described above — no vehicle data, hour readings, or personal details. The file is overwritten each session and stays on your device unless you send a bug report.</p>
     <p>The email is opened in your device's email app. <strong>Nothing is sent automatically</strong> — you can review, edit, or cancel the message before sending. Bug reports are only collected when you choose to send one.</p>
 
     <h2>Third-Party Services</h2>

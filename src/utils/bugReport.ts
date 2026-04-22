@@ -2,7 +2,13 @@ import { Platform, Linking, Alert } from 'react-native';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import { getDatabase } from '../db/database';
-import { getRecentErrors } from './errorLog';
+import {
+  getRecentErrors,
+  getBreadcrumbs,
+  getPreviousSession,
+  LogEntry,
+  Breadcrumb,
+} from './errorLog';
 
 const REPORT_EMAIL = 'tyoxic@gmail.com';
 
@@ -14,7 +20,13 @@ interface ReportContext {
   deviceName: string;
   vehicleCount: number;
   maintenanceLogCount: number;
-  recentErrors: string;
+  currentErrors: LogEntry[];
+  breadcrumbs: Breadcrumb[];
+  previousSession: {
+    startedAt: string;
+    errors: LogEntry[];
+    breadcrumbs: Breadcrumb[];
+  } | null;
 }
 
 async function gatherContext(): Promise<ReportContext> {
@@ -26,13 +38,7 @@ async function gatherContext(): Promise<ReportContext> {
     'SELECT COUNT(*) as count FROM maintenance_log'
   );
 
-  const errors = getRecentErrors();
-  const recentErrors =
-    errors.length === 0
-      ? '(none captured this session)'
-      : errors
-          .map((e) => `[${e.timestamp}] ${e.level.toUpperCase()}: ${e.message}`)
-          .join('\n\n');
+  const prev = getPreviousSession();
 
   return {
     appVersion: Constants.expoConfig?.version ?? 'unknown',
@@ -42,11 +48,47 @@ async function gatherContext(): Promise<ReportContext> {
     deviceName: Constants.deviceName ?? 'unknown',
     vehicleCount: vehicleRow?.count ?? 0,
     maintenanceLogCount: logRow?.count ?? 0,
-    recentErrors,
+    currentErrors: getRecentErrors(),
+    breadcrumbs: getBreadcrumbs(),
+    previousSession: prev
+      ? {
+          startedAt: prev.sessionStartedAt,
+          errors: prev.errors,
+          breadcrumbs: prev.breadcrumbs,
+        }
+      : null,
   };
 }
 
+function formatErrors(errors: LogEntry[]): string {
+  if (errors.length === 0) return '(none)';
+  return errors
+    .map((e) => `[${e.timestamp}] ${e.level.toUpperCase()}: ${e.message}`)
+    .join('\n\n');
+}
+
+function formatBreadcrumbs(crumbs: Breadcrumb[]): string {
+  if (crumbs.length === 0) return '(none)';
+  return crumbs
+    .map((c) => {
+      const data = c.data ? ` ${JSON.stringify(c.data)}` : '';
+      return `[${c.timestamp}] ${c.category}: ${c.message}${data}`;
+    })
+    .join('\n');
+}
+
 function buildBody(ctx: ReportContext): string {
+  const prevBlock = ctx.previousSession
+    ? `
+
+PREVIOUS SESSION (started ${ctx.previousSession.startedAt}):
+Errors:
+${formatErrors(ctx.previousSession.errors)}
+
+Breadcrumbs:
+${formatBreadcrumbs(ctx.previousSession.breadcrumbs)}`
+    : '';
+
   return `Describe the issue or feedback below this line:
 
 ------------------------------------------------------------
@@ -67,8 +109,12 @@ Device:             ${ctx.deviceName}
 Vehicles in app:    ${ctx.vehicleCount}
 Maintenance logs:   ${ctx.maintenanceLogCount}
 
-Recent errors (last 20):
-${ctx.recentErrors}
+CURRENT SESSION:
+Errors:
+${formatErrors(ctx.currentErrors)}
+
+Breadcrumbs (recent user actions):
+${formatBreadcrumbs(ctx.breadcrumbs)}${prevBlock}
 `;
 }
 
