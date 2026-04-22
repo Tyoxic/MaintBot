@@ -8,6 +8,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Share,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,6 +32,7 @@ export default function ProfileScreen({ navigation }: Props) {
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [sendingReport, setSendingReport] = useState(false);
   const [openingBrowser, setOpeningBrowser] = useState(false);
+  const [sharingLink, setSharingLink] = useState(false);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
   const insets = useSafeAreaInsets();
 
@@ -112,6 +114,20 @@ export default function ProfileScreen({ navigation }: Props) {
       Alert.alert('Error', 'Failed to open browser. Visit github.com/Tyoxic/MaintBot/releases/latest to download.');
     } finally {
       setOpeningBrowser(false);
+    }
+  }, []);
+
+  const handleShareInstallLink = useCallback(async () => {
+    setSharingLink(true);
+    try {
+      await Share.share({
+        message:
+          'Check out MaintBot — a privacy-first vehicle maintenance tracker for Android. All data stays on your phone. Install: https://github.com/Tyoxic/MaintBot/releases/latest',
+      });
+    } catch {
+      Alert.alert('Error', 'Failed to open share sheet.');
+    } finally {
+      setSharingLink(false);
     }
   }, []);
 
@@ -235,9 +251,21 @@ export default function ProfileScreen({ navigation }: Props) {
             <Text style={styles.outlineBtnText}>Download Latest APK</Text>
           )}
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.outlineBtn, sharingLink && styles.disabledBtn]}
+          onPress={handleShareInstallLink}
+          disabled={sharingLink}
+        >
+          {sharingLink ? (
+            <ActivityIndicator color="#2196F3" size="small" />
+          ) : (
+            <Text style={styles.outlineBtnText}>Share Install Link</Text>
+          )}
+        </TouchableOpacity>
         <Text style={styles.helperText}>
-          "Check for Updates" pulls silent JS updates. Use "Download Latest APK" only
-          when a new installable version is announced (native changes).
+          "Check for Updates" pulls silent JS updates. "Download Latest APK" is for
+          major installable versions. "Share Install Link" opens the share sheet with
+          a link friends can use to install MaintBot.
         </Text>
       </View>
 
