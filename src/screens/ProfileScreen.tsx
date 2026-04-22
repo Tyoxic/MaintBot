@@ -136,7 +136,7 @@ export default function ProfileScreen({ navigation }: Props) {
       setApkStatus(apk);
       if (apk.status === 'update-available' && apk.latestVersion) {
         Alert.alert(
-          'New APK Available',
+          'New Version Available',
           `A new installable version (v${apk.latestVersion}) is available. You're on v${apk.currentVersion}. Tap "Open Releases Page" to download and install it.`,
           [
             { text: 'Later', style: 'cancel' },
@@ -162,7 +162,7 @@ export default function ProfileScreen({ navigation }: Props) {
     try {
       await Share.share({
         message:
-          'Check out MaintBot — a privacy-first vehicle maintenance tracker for Android. All data stays on your phone. Install: https://github.com/Tyoxic/MaintBot/releases/latest',
+          'Check out MaintBot — a privacy-first vehicle maintenance tracker. All data stays on your phone. Install: https://github.com/Tyoxic/MaintBot/releases/latest',
       });
     } catch {
       Alert.alert('Error', 'Failed to open share sheet.');
@@ -297,15 +297,15 @@ export default function ProfileScreen({ navigation }: Props) {
               <ActivityIndicator color="#888" size="small" />
             ) : apkStatus.status === 'update-available' ? (
               <Text style={styles.apkStatusUpdate}>
-                ⚠ New APK v{apkStatus.latestVersion} available (you have v{apkStatus.currentVersion}) — tap to recheck
+                ⚠ New version v{apkStatus.latestVersion} available (you have v{apkStatus.currentVersion}) — tap to recheck
               </Text>
             ) : apkStatus.status === 'up-to-date' ? (
               <Text style={styles.apkStatusOk}>
-                ✓ APK is up to date (v{apkStatus.currentVersion}) — tap to recheck
+                ✓ App is up to date (v{apkStatus.currentVersion}) — tap to recheck
               </Text>
             ) : (
               <Text style={styles.apkStatusError}>
-                Couldn't check for APK updates — tap to retry
+                Couldn't check for updates — tap to retry
               </Text>
             )}
           </TouchableOpacity>
@@ -332,8 +332,8 @@ export default function ProfileScreen({ navigation }: Props) {
               {apkStatus?.status === 'update-available' && apkStatus.latestVersion
                 ? `Download v${apkStatus.latestVersion} →`
                 : apkStatus?.status === 'up-to-date'
-                ? 'Already on Latest APK'
-                : 'Download Latest APK'}
+                ? 'Already on Latest Version'
+                : 'Download Latest Version'}
             </Text>
           )}
         </TouchableOpacity>
@@ -349,7 +349,7 @@ export default function ProfileScreen({ navigation }: Props) {
           )}
         </TouchableOpacity>
         <Text style={styles.helperText}>
-          "Check for Updates" pulls silent JS updates. "Download Latest APK" is for
+          "Check for Updates" pulls silent JS updates. "Download Latest Version" is for
           major installable versions. "Share Install Link" opens the share sheet with
           a link friends can use to install MaintBot.
         </Text>
