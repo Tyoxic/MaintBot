@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList, MaintenanceItem, Vehicle } from '../models/types';
 import { getVehicle } from '../db/vehicles';
 import { getMaintenanceItem, markItemDone } from '../db/maintenanceItems';
@@ -15,6 +16,7 @@ export default function MarkDoneScreen({ navigation, route }: Props) {
   const [item, setItem] = useState<MaintenanceItem | null>(null);
   const [hoursAtService, setHoursAtService] = useState('');
   const [notes, setNotes] = useState('');
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     (async () => {
@@ -42,7 +44,7 @@ export default function MarkDoneScreen({ navigation, route }: Props) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
       <View style={styles.card}>
         <Text style={styles.itemName}>{item.name}</Text>
         {!trackOnly && (

@@ -1,6 +1,7 @@
 import React, { useLayoutEffect } from 'react';
 import { View, FlatList, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../models/types';
 import { useVehicles } from '../hooks/useVehicles';
 import VehicleCard from '../components/VehicleCard';
@@ -10,6 +11,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Garage'>;
 
 export default function GarageScreen({ navigation }: Props) {
   const { vehicles, loading, refresh } = useVehicles();
+  const insets = useSafeAreaInsets();
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -35,7 +37,11 @@ export default function GarageScreen({ navigation }: Props) {
             onPress={() => navigation.navigate('VehicleDetail', { vehicleId: item.id })}
           />
         )}
-        contentContainerStyle={vehicles.length === 0 ? styles.emptyContainer : styles.list}
+        contentContainerStyle={
+          vehicles.length === 0
+            ? styles.emptyContainer
+            : [styles.list, { paddingBottom: insets.bottom + 80 }]
+        }
         ListEmptyComponent={
           loading ? null : (
             <EmptyState
@@ -49,7 +55,7 @@ export default function GarageScreen({ navigation }: Props) {
         onRefresh={refresh}
       />
       <TouchableOpacity
-        style={styles.fab}
+        style={[styles.fab, { bottom: insets.bottom + 24 }]}
         onPress={() => navigation.navigate('AddEditVehicle', {})}
       >
         <Text style={styles.fabText}>+</Text>

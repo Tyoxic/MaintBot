@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList, MaintenanceItemWithHealth } from '../models/types';
 import { getVehicle, updateVehicleHours } from '../db/vehicles';
 import { getMaintenanceItems } from '../db/maintenanceItems';
@@ -15,6 +16,7 @@ export default function LogRideScreen({ navigation, route }: Props) {
   const [newHours, setNewHours] = useState('');
   const [notes, setNotes] = useState('');
   const [dueItems, setDueItems] = useState<MaintenanceItemWithHealth[]>([]);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     (async () => {
@@ -62,7 +64,7 @@ export default function LogRideScreen({ navigation, route }: Props) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
       <View style={styles.currentBox}>
         <Text style={styles.currentLabel}>Current Hour Meter</Text>
         <Text style={styles.currentValue}>{currentHours.toFixed(1)} hrs</Text>

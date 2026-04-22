@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import { RootStackParamList } from '../models/types';
@@ -29,6 +30,7 @@ export default function ProfileScreen({ navigation }: Props) {
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [sendingReport, setSendingReport] = useState(false);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     (async () => {
@@ -136,7 +138,7 @@ export default function ProfileScreen({ navigation }: Props) {
     : 'embedded';
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}>
       <Text style={styles.sectionHeader}>Profile</Text>
       <View style={styles.card}>
         <Text style={styles.label}>Name</Text>

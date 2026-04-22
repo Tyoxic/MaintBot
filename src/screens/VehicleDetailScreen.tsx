@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { RootStackParamList, Vehicle, MaintenanceItemWithHealth } from '../models/types';
 import { getVehicle } from '../db/vehicles';
@@ -23,6 +24,7 @@ export default function VehicleDetailScreen({ navigation, route }: Props) {
   const [newItemName, setNewItemName] = useState('');
   const [newItemInterval, setNewItemInterval] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<MaintenanceItemWithHealth | null>(null);
+  const insets = useSafeAreaInsets();
 
   const refresh = useCallback(async () => {
     const v = await getVehicle(vehicleId);
@@ -91,7 +93,7 @@ export default function VehicleDetailScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.list}>
+      <ScrollView contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]}>
         <View style={styles.header}>
           {vehicle.photo_uri ? (
             <Image source={{ uri: vehicle.photo_uri }} style={styles.photo} />

@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format, parseISO } from 'date-fns';
 import { RootStackParamList } from '../models/types';
 import { getMaintenanceLogs } from '../db/maintenanceLog';
@@ -23,6 +24,7 @@ export default function MaintenanceHistoryScreen({ route }: Props) {
   const { vehicleId } = route.params;
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const insets = useSafeAreaInsets();
 
   useFocusEffect(
     useCallback(() => {
@@ -76,7 +78,11 @@ export default function MaintenanceHistoryScreen({ route }: Props) {
             </View>
           </View>
         )}
-        contentContainerStyle={entries.length === 0 ? styles.emptyContainer : styles.list}
+        contentContainerStyle={
+          entries.length === 0
+            ? styles.emptyContainer
+            : [styles.list, { paddingBottom: insets.bottom + 8 }]
+        }
         ListEmptyComponent={
           loading ? null : (
             <EmptyState
