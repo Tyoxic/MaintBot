@@ -52,6 +52,8 @@ export default function ProfileScreen({ navigation }: Props) {
   }, []);
 
   const runApkCheck = useCallback(async () => {
+    // APK updates only apply to Android; iOS uses TestFlight / App Store.
+    if (Platform.OS !== 'android') return;
     setCheckingApk(true);
     try {
       const status = await checkApkVersion();
@@ -63,6 +65,7 @@ export default function ProfileScreen({ navigation }: Props) {
 
   useEffect(() => {
     if (__DEV__) return;
+    if (Platform.OS !== 'android') return;
     runApkCheck();
   }, [runApkCheck]);
 
@@ -131,22 +134,26 @@ export default function ProfileScreen({ navigation }: Props) {
         return;
       }
 
-      // No OTA update — also check for a newer APK on GitHub Releases
-      const apk = await checkApkVersion();
-      setApkStatus(apk);
-      if (apk.status === 'update-available' && apk.latestVersion) {
-        Alert.alert(
-          'New Version Available',
-          `A new installable version (v${apk.latestVersion}) is available. You're on v${apk.currentVersion}. Tap "Open Releases Page" to download and install it.`,
-          [
-            { text: 'Later', style: 'cancel' },
-            {
-              text: 'Open Releases Page',
-              onPress: () => { handleDownloadLatestApk(); },
-            },
-          ]
-        );
-        return;
+      // No OTA update. On Android also check GitHub Releases for a newer APK;
+      // iOS uses TestFlight / App Store for installable updates, nothing to
+      // poll here.
+      if (Platform.OS === 'android') {
+        const apk = await checkApkVersion();
+        setApkStatus(apk);
+        if (apk.status === 'update-available' && apk.latestVersion) {
+          Alert.alert(
+            'New Version Available',
+            `A new installable version (v${apk.latestVersion}) is available. You're on v${apk.currentVersion}. Tap "Open Releases Page" to download and install it.`,
+            [
+              { text: 'Later', style: 'cancel' },
+              {
+                text: 'Open Releases Page',
+                onPress: () => { handleDownloadLatestApk(); },
+              },
+            ]
+          );
+          return;
+        }
       }
 
       Alert.alert('Up to Date', 'You are running the latest version.');
@@ -160,10 +167,11 @@ export default function ProfileScreen({ navigation }: Props) {
   const handleShareInstallLink = useCallback(async () => {
     setSharingLink(true);
     try {
-      await Share.share({
-        message:
-          'Check out MaintBot — a privacy-first vehicle maintenance tracker. All data stays on your phone. Install: https://github.com/Tyoxic/MaintBot/releases/latest',
-      });
+      const message =
+        Platform.OS === 'ios'
+          ? 'Check out MaintBot — a privacy-first vehicle maintenance tracker. All data stays on your phone.\n\niPhone: search "MaintBot" in the App Store\nAndroid: https://github.com/Tyoxic/MaintBot/releases/latest'
+          : 'Check out MaintBot — a privacy-first vehicle maintenance tracker. All data stays on your phone.\n\nAndroid: https://github.com/Tyoxic/MaintBot/releases/latest\niPhone: search "MaintBot" in the App Store';
+      await Share.share({ message });
     } catch {
       Alert.alert('Error', 'Failed to open share sheet.');
     } finally {
@@ -286,7 +294,7 @@ export default function ProfileScreen({ navigation }: Props) {
           )}
         </TouchableOpacity>
 
-        {apkStatus && (
+        {Platform.OS === 'android' && apkStatus && (
           <TouchableOpacity
             style={styles.apkStatusRow}
             onPress={runApkCheck}
@@ -311,32 +319,34 @@ export default function ProfileScreen({ navigation }: Props) {
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity
-          style={[
-            styles.outlineBtn,
-            apkStatus?.status === 'update-available' && styles.highlightBtn,
-            (openingBrowser || apkStatus?.status === 'up-to-date') && styles.disabledBtn,
-          ]}
-          onPress={handleDownloadLatestApk}
-          disabled={openingBrowser || apkStatus?.status === 'up-to-date'}
-        >
-          {openingBrowser ? (
-            <ActivityIndicator color="#2196F3" size="small" />
-          ) : (
-            <Text
-              style={[
-                styles.outlineBtnText,
-                apkStatus?.status === 'update-available' && styles.highlightBtnText,
-              ]}
-            >
-              {apkStatus?.status === 'update-available' && apkStatus.latestVersion
-                ? `Download v${apkStatus.latestVersion} →`
-                : apkStatus?.status === 'up-to-date'
-                ? 'Already on Latest Version'
-                : 'Download Latest Version'}
-            </Text>
-          )}
-        </TouchableOpacity>
+        {Platform.OS === 'android' && (
+          <TouchableOpacity
+            style={[
+              styles.outlineBtn,
+              apkStatus?.status === 'update-available' && styles.highlightBtn,
+              (openingBrowser || apkStatus?.status === 'up-to-date') && styles.disabledBtn,
+            ]}
+            onPress={handleDownloadLatestApk}
+            disabled={openingBrowser || apkStatus?.status === 'up-to-date'}
+          >
+            {openingBrowser ? (
+              <ActivityIndicator color="#2196F3" size="small" />
+            ) : (
+              <Text
+                style={[
+                  styles.outlineBtnText,
+                  apkStatus?.status === 'update-available' && styles.highlightBtnText,
+                ]}
+              >
+                {apkStatus?.status === 'update-available' && apkStatus.latestVersion
+                  ? `Download v${apkStatus.latestVersion} →`
+                  : apkStatus?.status === 'up-to-date'
+                  ? 'Already on Latest Version'
+                  : 'Download Latest Version'}
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           style={[styles.outlineBtn, sharingLink && styles.disabledBtn]}
           onPress={handleShareInstallLink}
@@ -349,9 +359,9 @@ export default function ProfileScreen({ navigation }: Props) {
           )}
         </TouchableOpacity>
         <Text style={styles.helperText}>
-          "Check for Updates" pulls silent JS updates. "Download Latest Version" is for
-          major installable versions. "Share Install Link" opens the share sheet with
-          a link friends can use to install MaintBot.
+          {Platform.OS === 'ios'
+            ? '"Check for Updates" pulls silent JS updates. Installable app updates arrive automatically via TestFlight or the App Store — no action needed. "Share Install Link" sends a cross-platform install message.'
+            : '"Check for Updates" pulls silent JS updates. "Download Latest Version" is for major installable APK versions. "Share Install Link" opens the share sheet with a link friends can use to install MaintBot.'}
         </Text>
       </View>
 
