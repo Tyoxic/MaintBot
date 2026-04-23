@@ -161,9 +161,9 @@ export default function VehicleDetailScreen({ navigation, route }: Props) {
             <Text style={styles.actionIcon}>✏️</Text>
             <Text style={styles.actionLabel}>Edit</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('ExpertView', { vehicleId })}>
-            <Text style={styles.actionIcon}>📊</Text>
-            <Text style={styles.actionLabel}>Expert</Text>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('ServiceLog', { vehicleId })}>
+            <Text style={styles.actionIcon}>🔧</Text>
+            <Text style={styles.actionLabel}>Service Log</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('VehicleNotes', { vehicleId })}>
             <Text style={styles.actionIcon}>📝</Text>

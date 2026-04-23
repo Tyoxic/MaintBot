@@ -78,7 +78,7 @@ export type RootStackParamList = {
   LogRide: { vehicleId: number };
   MarkDone: { vehicleId: number; itemId: number };
   MaintenanceHistory: { vehicleId: number };
-  ExpertView: { vehicleId: number };
+  ServiceLog: { vehicleId: number };
   VehicleNotes: { vehicleId: number };
   EditNote: { vehicleId: number; noteId: number };
   Profile: undefined;
