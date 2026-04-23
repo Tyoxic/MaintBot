@@ -13,6 +13,7 @@ import {
   getMaintenanceItems,
   createCustomItem,
   deleteMaintenanceItem,
+  updateMaintenanceItem,
   getMissingDefaultItems,
   addDefaultItems,
   dismissDefaultItems,
@@ -22,7 +23,8 @@ import { computeHealth, worstHealth, HEALTH_COLORS } from '../utils/colors';
 import MaintenanceItemRow from '../components/MaintenanceItemRow';
 import HealthIndicator from '../components/HealthIndicator';
 import ConfirmModal from '../components/ConfirmModal';
-import MissingDefaultsModal from '../components/MissingDefaultsModal';
+import MissingDefaultsModal, { DefaultItemSelection } from '../components/MissingDefaultsModal';
+import EditItemModal from '../components/EditItemModal';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'VehicleDetail'>;
 
@@ -34,6 +36,7 @@ export default function VehicleDetailScreen({ navigation, route }: Props) {
   const [newItemName, setNewItemName] = useState('');
   const [newItemInterval, setNewItemInterval] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<MaintenanceItemWithHealth | null>(null);
+  const [editTarget, setEditTarget] = useState<MaintenanceItemWithHealth | null>(null);
   const [missingDefaults, setMissingDefaults] = useState<DefaultItemSuggestion[]>([]);
   const [showDefaultsModal, setShowDefaultsModal] = useState(false);
   const insets = useSafeAreaInsets();
@@ -61,12 +64,20 @@ export default function VehicleDetailScreen({ navigation, route }: Props) {
     }
   }, [vehicleId, navigation]);
 
-  const handleApplyDefaults = useCallback(async (toAdd: string[], toDismiss: string[]) => {
-    await addDefaultItems(vehicleId, toAdd);
-    await dismissDefaultItems(vehicleId, toDismiss);
-    setShowDefaultsModal(false);
-    await refresh();
-  }, [vehicleId, refresh]);
+  const handleApplyDefaults = useCallback(
+    async (toAdd: DefaultItemSelection[], toDismiss: string[]) => {
+      const additions = toAdd.map((s) => ({
+        name: s.name,
+        intervalHours: s.intervalHours,
+        sortOrder: s.sortOrder,
+      }));
+      await addDefaultItems(vehicleId, additions);
+      await dismissDefaultItems(vehicleId, toDismiss);
+      setShowDefaultsModal(false);
+      await refresh();
+    },
+    [vehicleId, refresh]
+  );
 
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
@@ -99,9 +110,17 @@ export default function VehicleDetailScreen({ navigation, route }: Props) {
   const handleLongPressItem = (item: MaintenanceItemWithHealth) => {
     Alert.alert(item.name, 'What would you like to do?', [
       { text: 'Mark Done', onPress: () => navigation.navigate('MarkDone', { vehicleId, itemId: item.id }) },
+      { text: 'Edit Item', onPress: () => setEditTarget(item) },
       { text: 'Delete Item', style: 'destructive', onPress: () => setDeleteTarget(item) },
       { text: 'Cancel', style: 'cancel' },
     ]);
+  };
+
+  const handleSaveEdit = async (name: string, intervalHours: number) => {
+    if (!editTarget) return;
+    await updateMaintenanceItem(editTarget.id, name, intervalHours);
+    setEditTarget(null);
+    await refresh();
   };
 
   const regExpiryInfo = vehicle.reg_expiry ? (() => {
@@ -259,6 +278,14 @@ export default function VehicleDetailScreen({ navigation, route }: Props) {
         suggestions={missingDefaults}
         onApply={handleApplyDefaults}
         onCancel={() => setShowDefaultsModal(false)}
+      />
+
+      <EditItemModal
+        visible={!!editTarget}
+        initialName={editTarget?.name ?? ''}
+        initialIntervalHours={editTarget?.interval_hours ?? 0}
+        onSave={handleSaveEdit}
+        onCancel={() => setEditTarget(null)}
       />
     </View>
     </KeyboardAvoidingView>

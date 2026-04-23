@@ -127,24 +127,35 @@ export async function getMissingDefaultItems(
   });
 }
 
+export interface DefaultItemAddition {
+  name: string;
+  intervalHours: number;
+  sortOrder: number;
+}
+
 export async function addDefaultItems(
   vehicleId: number,
-  names: string[]
+  selections: DefaultItemAddition[]
 ): Promise<void> {
-  if (names.length === 0) return;
+  if (selections.length === 0) return;
   const db = await getDatabase();
-  const wantedLower = new Set(names.map((n) => n.trim().toLowerCase()));
-  const matches = DEFAULT_MAINTENANCE_ITEMS.filter((d) =>
-    wantedLower.has(d.name.trim().toLowerCase())
+  // Safety: only allow inserting names that exist in DEFAULT_MAINTENANCE_ITEMS
+  const allowed = new Set(
+    DEFAULT_MAINTENANCE_ITEMS.map((d) => d.name.trim().toLowerCase())
   );
-  for (const item of matches) {
+  for (const sel of selections) {
+    if (!allowed.has(sel.name.trim().toLowerCase())) continue;
+    const safeInterval =
+      !isFinite(sel.intervalHours) || sel.intervalHours < 0
+        ? 0
+        : Math.min(sel.intervalHours, 999999);
     await db.runAsync(
       `INSERT INTO maintenance_items (vehicle_id, name, interval_hours, last_done_hours, is_custom, sort_order)
        VALUES (?, ?, ?, 0, 0, ?)`,
       vehicleId,
-      item.name,
-      item.interval_hours,
-      item.sort_order
+      sel.name,
+      safeInterval,
+      sel.sortOrder
     );
   }
 }
