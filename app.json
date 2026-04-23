@@ -81,7 +81,8 @@
           "photosPermission": "MaintBot needs access to your photo library so you can attach photos to your vehicles."
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "./plugins/withLocalOnlyNotifications.js"
     ],
     "extra": {
       "eas": {
