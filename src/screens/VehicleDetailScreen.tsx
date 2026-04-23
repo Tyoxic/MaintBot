@@ -47,7 +47,17 @@ export default function VehicleDetailScreen({ navigation, route }: Props) {
       setItems(withHealth);
       const missing = await getMissingDefaultItems(vehicleId);
       setMissingDefaults(missing);
-      navigation.setOptions({ title: v.name });
+      navigation.setOptions({
+        title: v.name,
+        headerRight: () => (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('AddEditVehicle', { vehicleId })}
+            hitSlop={8}
+          >
+            <Text style={{ fontSize: 15, color: '#2196F3', fontWeight: '600' }}>Edit</Text>
+          </TouchableOpacity>
+        ),
+      });
     }
   }, [vehicleId, navigation]);
 
@@ -156,10 +166,6 @@ export default function VehicleDetailScreen({ navigation, route }: Props) {
           <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('MaintenanceHistory', { vehicleId })}>
             <Text style={styles.actionIcon}>📋</Text>
             <Text style={styles.actionLabel}>History</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('AddEditVehicle', { vehicleId })}>
-            <Text style={styles.actionIcon}>✏️</Text>
-            <Text style={styles.actionLabel}>Edit</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('ServiceLog', { vehicleId })}>
             <Text style={styles.actionIcon}>🔧</Text>
