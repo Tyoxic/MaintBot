@@ -38,6 +38,26 @@ export async function markItemDone(id: number, hoursAtService: number): Promise<
   );
 }
 
+// Recomputes last_done_hours from the most recent maintenance_log entry for
+// this item. Use after add/edit/delete of log entries so health calculations
+// reflect the true latest service, even when editing historical entries or
+// deleting the most recent one.
+export async function recomputeLastDoneHours(itemId: number): Promise<void> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ hours_at_service: number }>(
+    `SELECT hours_at_service FROM maintenance_log
+     WHERE maintenance_item_id = ?
+     ORDER BY performed_at DESC
+     LIMIT 1`,
+    itemId
+  );
+  await db.runAsync(
+    'UPDATE maintenance_items SET last_done_hours = ? WHERE id = ?',
+    row?.hours_at_service ?? 0,
+    itemId
+  );
+}
+
 export async function createCustomItem(
   vehicleId: number,
   name: string,

@@ -19,7 +19,7 @@ import {
 } from 'date-fns';
 import { RootStackParamList, MaintenanceItem, MaintenanceLogEntry } from '../models/types';
 import { getVehicle } from '../db/vehicles';
-import { getMaintenanceItems, markItemDone } from '../db/maintenanceItems';
+import { getMaintenanceItems, recomputeLastDoneHours } from '../db/maintenanceItems';
 import {
   getMaintenanceLogs,
   addMaintenanceLog,
@@ -130,7 +130,9 @@ export default function ServiceLogScreen({ navigation, route }: Props) {
         draft.notes
       );
     }
-    await markItemDone(draft.itemId, draft.hoursAtService);
+    // Recompute from the log table so historical edits and adds don't
+    // incorrectly overwrite last_done_hours with a lower value.
+    await recomputeLastDoneHours(draft.itemId);
     setEditingLog(null);
     await refresh();
   }, [editingLog, vehicleId, refresh]);
@@ -138,7 +140,11 @@ export default function ServiceLogScreen({ navigation, route }: Props) {
   const handleDelete = useCallback(async () => {
     if (!editingLog) return;
     setSheetVisible(false);
+    const itemId = editingLog.maintenance_item_id;
     await deleteMaintenanceLog(editingLog.id);
+    if (itemId !== null) {
+      await recomputeLastDoneHours(itemId);
+    }
     setEditingLog(null);
     await refresh();
   }, [editingLog, refresh]);
@@ -156,7 +162,11 @@ export default function ServiceLogScreen({ navigation, route }: Props) {
               text: 'Delete',
               style: 'destructive',
               onPress: async () => {
+                const itemId = log.maintenance_item_id;
                 await deleteMaintenanceLog(log.id);
+                if (itemId !== null) {
+                  await recomputeLastDoneHours(itemId);
+                }
                 await refresh();
               },
             },
