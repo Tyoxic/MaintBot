@@ -169,8 +169,8 @@ export default function ProfileScreen({ navigation }: Props) {
     try {
       const message =
         Platform.OS === 'ios'
-          ? 'Check out MaintBot — a privacy-first vehicle maintenance tracker. All data stays on your phone.\n\niPhone: search "MaintBot" in the App Store\nAndroid: https://github.com/Tyoxic/MaintBot/releases/latest'
-          : 'Check out MaintBot — a privacy-first vehicle maintenance tracker. All data stays on your phone.\n\nAndroid: https://github.com/Tyoxic/MaintBot/releases/latest\niPhone: search "MaintBot" in the App Store';
+          ? 'Check out MaintBot — a privacy-first vehicle maintenance tracker. All data stays on your phone.\n\niPhone: https://apps.apple.com/app/id6763218235\nAndroid: https://github.com/Tyoxic/MaintBot/releases/latest'
+          : 'Check out MaintBot — a privacy-first vehicle maintenance tracker. All data stays on your phone.\n\nAndroid: https://github.com/Tyoxic/MaintBot/releases/latest\niPhone: https://apps.apple.com/app/id6763218235';
       await Share.share({ message });
     } catch {
       Alert.alert('Error', 'Failed to open share sheet.');
