@@ -10,14 +10,15 @@ export interface CreateVehicleInput {
   vin?: string;
   photo_uri?: string;
   current_hours?: number;
+  current_miles?: number;
   reg_expiry?: string | null;
 }
 
 export async function createVehicle(input: CreateVehicleInput): Promise<number> {
   const db = await getDatabase();
   const result = await db.runAsync(
-    `INSERT INTO vehicles (name, year, make, model, type, vin, photo_uri, current_hours, reg_expiry)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO vehicles (name, year, make, model, type, vin, photo_uri, current_hours, current_miles, reg_expiry)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     input.name,
     input.year ?? null,
     input.make ?? '',
@@ -26,6 +27,7 @@ export async function createVehicle(input: CreateVehicleInput): Promise<number> 
     input.vin ?? '',
     input.photo_uri ?? '',
     input.current_hours ?? 0,
+    input.current_miles ?? 0,
     input.reg_expiry ?? null
   );
   return result.lastInsertRowId;
@@ -50,6 +52,7 @@ const ALLOWED_UPDATE_FIELDS: readonly (keyof CreateVehicleInput)[] = [
   'vin',
   'photo_uri',
   'current_hours',
+  'current_miles',
   'reg_expiry',
 ];
 
@@ -79,6 +82,15 @@ export async function updateVehicleHours(id: number, hours: number): Promise<voi
   await db.runAsync(
     `UPDATE vehicles SET current_hours = ?, updated_at = datetime('now') WHERE id = ?`,
     hours,
+    id
+  );
+}
+
+export async function updateVehicleMiles(id: number, miles: number): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    `UPDATE vehicles SET current_miles = ?, updated_at = datetime('now') WHERE id = ?`,
+    miles,
     id
   );
 }

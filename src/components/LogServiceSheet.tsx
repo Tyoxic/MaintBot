@@ -20,6 +20,7 @@ export interface LogServiceDraft {
   itemId: number;
   itemName: string;
   hoursAtService: number;
+  milesAtService: number | null;
   performedAt: string; // YYYY-MM-DDTHH:mm:ss format
   notes: string;
 }
@@ -29,6 +30,7 @@ interface Props {
   title: string;
   items: MaintenanceItem[];
   currentHours: number;
+  currentMiles: number;
   initial?: Partial<LogServiceDraft>;
   canDelete?: boolean;
   onSave: (draft: LogServiceDraft) => void;
@@ -48,6 +50,7 @@ export default function LogServiceSheet({
   title,
   items,
   currentHours,
+  currentMiles,
   initial,
   canDelete,
   onSave,
@@ -57,6 +60,7 @@ export default function LogServiceSheet({
   const insets = useSafeAreaInsets();
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
   const [hours, setHours] = useState('');
+  const [miles, setMiles] = useState('');
   const [notes, setNotes] = useState('');
   const [date, setDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -69,18 +73,31 @@ export default function LogServiceSheet({
         ? String(initial.hoursAtService)
         : String(currentHours)
     );
+    setMiles(
+      initial?.milesAtService !== undefined && initial?.milesAtService !== null
+        ? String(initial.milesAtService)
+        : currentMiles > 0
+        ? String(currentMiles)
+        : ''
+    );
     setNotes(initial?.notes ?? '');
     setDate(initial?.performedAt ? parseISO(initial.performedAt) : new Date());
     setShowDatePicker(false);
-  }, [visible, initial, currentHours]);
+  }, [visible, initial, currentHours, currentMiles]);
 
   const selectedItem = items.find((i) => i.id === selectedItemId) ?? null;
   const parsedHours = parseFloat(hours);
+  const milesTrimmed = miles.trim();
+  const parsedMiles = milesTrimmed === '' ? null : parseFloat(milesTrimmed);
+  const milesValid =
+    parsedMiles === null ||
+    (isFinite(parsedMiles) && parsedMiles >= 0 && parsedMiles <= 999999);
   const canSave =
     selectedItem !== null &&
     isFinite(parsedHours) &&
     parsedHours >= 0 &&
-    parsedHours <= 999999;
+    parsedHours <= 999999 &&
+    milesValid;
 
   const handleSave = () => {
     if (!canSave || !selectedItem) return;
@@ -88,6 +105,7 @@ export default function LogServiceSheet({
       itemId: selectedItem.id,
       itemName: selectedItem.name,
       hoursAtService: parsedHours,
+      milesAtService: parsedMiles,
       performedAt: format(date, "yyyy-MM-dd'T'HH:mm:ss"),
       notes: notes.trim(),
     });
@@ -189,6 +207,16 @@ export default function LogServiceSheet({
                 onChangeText={setHours}
                 keyboardType="decimal-pad"
                 placeholder={currentHours.toString()}
+                selectTextOnFocus
+              />
+
+              <Text style={styles.label}>Miles at service (optional)</Text>
+              <TextInput
+                style={styles.input}
+                value={miles}
+                onChangeText={setMiles}
+                keyboardType="decimal-pad"
+                placeholder={currentMiles > 0 ? currentMiles.toString() : 'leave blank if not tracking'}
                 selectTextOnFocus
               />
 

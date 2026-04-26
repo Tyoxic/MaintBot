@@ -18,6 +18,8 @@ interface Props {
   initialValue?: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  keyboardType?: 'default' | 'numeric' | 'decimal-pad' | 'number-pad';
+  allowEmpty?: boolean;
   onConfirm: (value: string) => void;
   onCancel: () => void;
 }
@@ -30,6 +32,8 @@ export default function TextPromptModal({
   initialValue = '',
   confirmLabel = 'Save',
   cancelLabel = 'Cancel',
+  keyboardType = 'default',
+  allowEmpty = false,
   onConfirm,
   onCancel,
 }: Props) {
@@ -41,11 +45,11 @@ export default function TextPromptModal({
 
   const handleConfirm = () => {
     const trimmed = value.trim();
-    if (!trimmed) return;
+    if (!trimmed && !allowEmpty) return;
     onConfirm(trimmed);
   };
 
-  const canConfirm = value.trim().length > 0;
+  const canConfirm = allowEmpty || value.trim().length > 0;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
@@ -61,6 +65,7 @@ export default function TextPromptModal({
             value={value}
             onChangeText={setValue}
             placeholder={placeholder}
+            keyboardType={keyboardType}
             autoFocus
             selectTextOnFocus
             returnKeyType="done"

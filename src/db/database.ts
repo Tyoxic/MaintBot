@@ -9,6 +9,19 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   return db;
 }
 
+// Idempotent: only ALTER if the column doesn't already exist.
+async function ensureColumn(
+  database: SQLite.SQLiteDatabase,
+  table: string,
+  column: string,
+  ddl: string
+): Promise<void> {
+  const cols = await database.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
+  if (!cols.some((c) => c.name === column)) {
+    await database.runAsync(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
+  }
+}
+
 async function runMigrations(database: SQLite.SQLiteDatabase) {
   await database.execAsync(`
     PRAGMA foreign_keys = ON;
@@ -92,4 +105,12 @@ async function runMigrations(database: SQLite.SQLiteDatabase) {
       FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
     );
   `);
+
+  // Miles tracking: optional second odometer per vehicle, optional second
+  // interval per maintenance item, optional miles reading per service log
+  // entry. All hours behavior is unchanged; miles is purely additive.
+  await ensureColumn(database, 'vehicles', 'current_miles', 'current_miles REAL NOT NULL DEFAULT 0');
+  await ensureColumn(database, 'maintenance_items', 'interval_miles', 'interval_miles REAL NOT NULL DEFAULT 0');
+  await ensureColumn(database, 'maintenance_items', 'last_done_miles', 'last_done_miles REAL NOT NULL DEFAULT 0');
+  await ensureColumn(database, 'maintenance_log', 'miles_at_service', 'miles_at_service REAL');
 }

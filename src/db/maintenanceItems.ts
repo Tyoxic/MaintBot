@@ -6,11 +6,13 @@ export async function seedDefaultItems(vehicleId: number): Promise<void> {
   const db = await getDatabase();
   for (const item of DEFAULT_MAINTENANCE_ITEMS) {
     await db.runAsync(
-      `INSERT INTO maintenance_items (vehicle_id, name, interval_hours, last_done_hours, is_custom, sort_order)
-       VALUES (?, ?, ?, 0, 0, ?)`,
+      `INSERT INTO maintenance_items
+        (vehicle_id, name, interval_hours, last_done_hours, interval_miles, last_done_miles, is_custom, sort_order)
+       VALUES (?, ?, ?, 0, ?, 0, 0, ?)`,
       vehicleId,
       item.name,
       item.interval_hours,
+      item.interval_miles,
       item.sort_order
     );
   }
@@ -29,31 +31,47 @@ export async function getMaintenanceItem(id: number): Promise<MaintenanceItem | 
   return db.getFirstAsync<MaintenanceItem>('SELECT * FROM maintenance_items WHERE id = ?', id);
 }
 
-export async function markItemDone(id: number, hoursAtService: number): Promise<void> {
+export async function markItemDone(
+  id: number,
+  hoursAtService: number,
+  milesAtService: number | null = null
+): Promise<void> {
   const db = await getDatabase();
-  await db.runAsync(
-    'UPDATE maintenance_items SET last_done_hours = ? WHERE id = ?',
-    hoursAtService,
-    id
-  );
+  if (milesAtService !== null) {
+    await db.runAsync(
+      'UPDATE maintenance_items SET last_done_hours = ?, last_done_miles = ? WHERE id = ?',
+      hoursAtService,
+      milesAtService,
+      id
+    );
+  } else {
+    await db.runAsync(
+      'UPDATE maintenance_items SET last_done_hours = ? WHERE id = ?',
+      hoursAtService,
+      id
+    );
+  }
 }
 
-// Recomputes last_done_hours from the most recent maintenance_log entry for
-// this item. Use after add/edit/delete of log entries so health calculations
-// reflect the true latest service, even when editing historical entries or
-// deleting the most recent one.
+// Recomputes last_done_hours and last_done_miles from the most recent
+// maintenance_log entry for this item. Use after add/edit/delete of log
+// entries so health calculations reflect the true latest service.
 export async function recomputeLastDoneHours(itemId: number): Promise<void> {
   const db = await getDatabase();
-  const row = await db.getFirstAsync<{ hours_at_service: number }>(
-    `SELECT hours_at_service FROM maintenance_log
+  const row = await db.getFirstAsync<{
+    hours_at_service: number;
+    miles_at_service: number | null;
+  }>(
+    `SELECT hours_at_service, miles_at_service FROM maintenance_log
      WHERE maintenance_item_id = ?
      ORDER BY performed_at DESC
      LIMIT 1`,
     itemId
   );
   await db.runAsync(
-    'UPDATE maintenance_items SET last_done_hours = ? WHERE id = ?',
+    'UPDATE maintenance_items SET last_done_hours = ?, last_done_miles = ? WHERE id = ?',
     row?.hours_at_service ?? 0,
+    row?.miles_at_service ?? 0,
     itemId
   );
 }
@@ -61,15 +79,18 @@ export async function recomputeLastDoneHours(itemId: number): Promise<void> {
 export async function createCustomItem(
   vehicleId: number,
   name: string,
-  intervalHours: number
+  intervalHours: number,
+  intervalMiles: number = 0
 ): Promise<number> {
   const db = await getDatabase();
   const result = await db.runAsync(
-    `INSERT INTO maintenance_items (vehicle_id, name, interval_hours, last_done_hours, is_custom, sort_order)
-     VALUES (?, ?, ?, 0, 1, 99)`,
+    `INSERT INTO maintenance_items
+      (vehicle_id, name, interval_hours, last_done_hours, interval_miles, last_done_miles, is_custom, sort_order)
+     VALUES (?, ?, ?, 0, ?, 0, 1, 99)`,
     vehicleId,
     name,
-    intervalHours
+    intervalHours,
+    intervalMiles
   );
   return result.lastInsertRowId;
 }
@@ -77,13 +98,15 @@ export async function createCustomItem(
 export async function updateMaintenanceItem(
   id: number,
   name: string,
-  intervalHours: number
+  intervalHours: number,
+  intervalMiles: number = 0
 ): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    'UPDATE maintenance_items SET name = ?, interval_hours = ? WHERE id = ?',
+    'UPDATE maintenance_items SET name = ?, interval_hours = ?, interval_miles = ? WHERE id = ?',
     name,
     intervalHours,
+    intervalMiles,
     id
   );
 }
@@ -104,6 +127,7 @@ export async function deleteMaintenanceItem(id: number): Promise<void> {
 export interface DefaultItemSuggestion {
   name: string;
   interval_hours: number;
+  interval_miles: number;
   sort_order: number;
 }
 
@@ -130,7 +154,13 @@ export async function getMissingDefaultItems(
 export interface DefaultItemAddition {
   name: string;
   intervalHours: number;
+  intervalMiles: number;
   sortOrder: number;
+}
+
+function clampInterval(v: number | undefined | null): number {
+  if (v === undefined || v === null || !isFinite(v) || v < 0) return 0;
+  return Math.min(v, 999999);
 }
 
 export async function addDefaultItems(
@@ -145,16 +175,14 @@ export async function addDefaultItems(
   );
   for (const sel of selections) {
     if (!allowed.has(sel.name.trim().toLowerCase())) continue;
-    const safeInterval =
-      !isFinite(sel.intervalHours) || sel.intervalHours < 0
-        ? 0
-        : Math.min(sel.intervalHours, 999999);
     await db.runAsync(
-      `INSERT INTO maintenance_items (vehicle_id, name, interval_hours, last_done_hours, is_custom, sort_order)
-       VALUES (?, ?, ?, 0, 0, ?)`,
+      `INSERT INTO maintenance_items
+        (vehicle_id, name, interval_hours, last_done_hours, interval_miles, last_done_miles, is_custom, sort_order)
+       VALUES (?, ?, ?, 0, ?, 0, 0, ?)`,
       vehicleId,
       sel.name,
-      safeInterval,
+      clampInterval(sel.intervalHours),
+      clampInterval(sel.intervalMiles),
       sel.sortOrder
     );
   }

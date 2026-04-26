@@ -16,7 +16,7 @@ export default function VehicleCard({ vehicle, onPress }: Props) {
   useEffect(() => {
     (async () => {
       const items = await getMaintenanceItems(vehicle.id);
-      const statuses = items.map((i) => computeHealth(i, vehicle.current_hours).health);
+      const statuses = items.map((i) => computeHealth(i, vehicle.current_hours, vehicle.current_miles ?? 0).health);
       setHealth(worstHealth(statuses));
     })();
   }, [vehicle]);
@@ -38,7 +38,12 @@ export default function VehicleCard({ vehicle, onPress }: Props) {
         <Text style={styles.detail}>
           {vehicle.year ? `${vehicle.year} ` : ''}{vehicle.make} {vehicle.model}
         </Text>
-        <Text style={styles.hours}>{vehicle.current_hours.toFixed(1)} hrs</Text>
+        <Text style={styles.hours}>
+          {vehicle.current_hours.toFixed(1)} hrs
+          {vehicle.current_miles && vehicle.current_miles > 0
+            ? `  ·  ${vehicle.current_miles.toLocaleString()} mi`
+            : ''}
+        </Text>
       </View>
     </TouchableOpacity>
   );

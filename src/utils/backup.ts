@@ -173,33 +173,39 @@ async function importData(data: BackupData): Promise<ImportSummary> {
       );
     }
 
-    // Import vehicles
+    // Import vehicles (miles fields default to 0 for backups predating miles)
     for (const v of data.vehicles) {
       await db.runAsync(
-        `INSERT INTO vehicles (id, name, year, make, model, type, vin, photo_uri, current_hours, reg_expiry, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO vehicles (id, name, year, make, model, type, vin, photo_uri, current_hours, current_miles, reg_expiry, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         v.id, v.name, v.year, v.make, v.model, v.type, v.vin,
-        v.photo_uri, v.current_hours, v.reg_expiry, v.created_at, v.updated_at
+        v.photo_uri, v.current_hours, (v as Vehicle).current_miles ?? 0,
+        v.reg_expiry, v.created_at, v.updated_at
       );
     }
 
-    // Import maintenance items
+    // Import maintenance items (miles fields default to 0 for backups predating miles)
     for (const mi of data.maintenanceItems) {
       await db.runAsync(
-        `INSERT INTO maintenance_items (id, vehicle_id, name, interval_hours, last_done_hours, is_custom, sort_order, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        mi.id, mi.vehicle_id, mi.name, mi.interval_hours,
-        mi.last_done_hours, mi.is_custom, mi.sort_order, mi.created_at
+        `INSERT INTO maintenance_items
+          (id, vehicle_id, name, interval_hours, last_done_hours, interval_miles, last_done_miles, is_custom, sort_order, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        mi.id, mi.vehicle_id, mi.name, mi.interval_hours, mi.last_done_hours,
+        (mi as MaintenanceItem).interval_miles ?? 0,
+        (mi as MaintenanceItem).last_done_miles ?? 0,
+        mi.is_custom, mi.sort_order, mi.created_at
       );
     }
 
-    // Import maintenance log
+    // Import maintenance log (miles_at_service is nullable — use null for backups predating miles)
     for (const ml of data.maintenanceLog) {
       await db.runAsync(
-        `INSERT INTO maintenance_log (id, vehicle_id, maintenance_item_id, item_name, hours_at_service, notes, performed_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO maintenance_log (id, vehicle_id, maintenance_item_id, item_name, hours_at_service, miles_at_service, notes, performed_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         ml.id, ml.vehicle_id, ml.maintenance_item_id, ml.item_name,
-        ml.hours_at_service, ml.notes, ml.performed_at
+        ml.hours_at_service,
+        (ml as MaintenanceLogEntry).miles_at_service ?? null,
+        ml.notes, ml.performed_at
       );
     }
 

@@ -18,7 +18,7 @@ export function useMaintenanceItems(vehicleId: number) {
       return;
     }
     const rawItems = await getMaintenanceItems(vehicleId);
-    const withHealth = rawItems.map((item) => computeHealth(item, vehicle.current_hours));
+    const withHealth = rawItems.map((item) => computeHealth(item, vehicle.current_hours, vehicle.current_miles ?? 0));
     setItems(withHealth);
     setLoading(false);
   }, [vehicleId]);

@@ -40,7 +40,11 @@ export default function MaintenanceHistoryScreen({ route }: Props) {
             id: `m-${m.id}`,
             type: 'maintenance' as const,
             title: m.item_name,
-            subtitle: `Done at ${m.hours_at_service.toFixed(1)} hrs${m.notes ? ` — ${m.notes}` : ''}`,
+            subtitle: `Done at ${m.hours_at_service.toFixed(1)} hrs${
+              m.miles_at_service != null && m.miles_at_service > 0
+                ? ` / ${m.miles_at_service.toLocaleString()} mi`
+                : ''
+            }${m.notes ? ` — ${m.notes}` : ''}`,
             date: format(parseISO(m.performed_at), 'MMM d, yyyy h:mm a'),
             rawDate: m.performed_at,
           })),

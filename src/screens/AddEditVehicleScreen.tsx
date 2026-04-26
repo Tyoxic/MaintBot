@@ -30,6 +30,7 @@ export default function AddEditVehicleScreen({ navigation, route }: Props) {
   const [vin, setVin] = useState('');
   const [photoUri, setPhotoUri] = useState('');
   const [currentHours, setCurrentHours] = useState('0');
+  const [currentMiles, setCurrentMiles] = useState('0');
   const [regExpiry, setRegExpiry] = useState('');
   const [showDelete, setShowDelete] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -62,6 +63,7 @@ export default function AddEditVehicleScreen({ navigation, route }: Props) {
           setVin(v.vin);
           setPhotoUri(v.photo_uri);
           setCurrentHours(v.current_hours.toString());
+          setCurrentMiles((v.current_miles ?? 0).toString());
           setRegExpiry(v.reg_expiry ?? '');
         }
       })();
@@ -115,6 +117,9 @@ export default function AddEditVehicleScreen({ navigation, route }: Props) {
     }
 
     const parsedHours = parseFloat(currentHours);
+    const parsedMiles = parseFloat(currentMiles);
+    const safeMiles =
+      !isFinite(parsedMiles) || parsedMiles < 0 ? 0 : Math.min(parsedMiles, 999999);
     const safeHours =
       !isFinite(parsedHours) || parsedHours < 0 ? 0 : Math.min(parsedHours, 999999);
 
@@ -127,6 +132,7 @@ export default function AddEditVehicleScreen({ navigation, route }: Props) {
       vin: vin.trim(),
       photo_uri: photoUri,
       current_hours: safeHours,
+      current_miles: safeMiles,
       reg_expiry: trimmedExpiry || null,
     };
 
@@ -240,6 +246,11 @@ export default function AddEditVehicleScreen({ navigation, route }: Props) {
         <View onLayout={trackLayout('hours')}>
           <Text style={styles.label}>Current Hours</Text>
           <TextInput style={styles.input} value={currentHours} onChangeText={setCurrentHours} keyboardType="decimal-pad" placeholder="0" onFocus={scrollToField('hours')} selectTextOnFocus />
+        </View>
+
+        <View onLayout={trackLayout('miles')}>
+          <Text style={styles.label}>Current Miles (optional)</Text>
+          <TextInput style={styles.input} value={currentMiles} onChangeText={setCurrentMiles} keyboardType="decimal-pad" placeholder="0" onFocus={scrollToField('miles')} selectTextOnFocus />
         </View>
 
         <Text style={styles.label}>Registration Expiry</Text>

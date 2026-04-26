@@ -8,7 +8,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { RootStackParamList, Vehicle, MaintenanceItemWithHealth } from '../models/types';
-import { getVehicle } from '../db/vehicles';
+import { getVehicle, updateVehicleHours, updateVehicleMiles } from '../db/vehicles';
 import {
   getMaintenanceItems,
   createCustomItem,
@@ -25,6 +25,7 @@ import HealthIndicator from '../components/HealthIndicator';
 import ConfirmModal from '../components/ConfirmModal';
 import MissingDefaultsModal, { DefaultItemSelection } from '../components/MissingDefaultsModal';
 import EditItemModal from '../components/EditItemModal';
+import TextPromptModal from '../components/TextPromptModal';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'VehicleDetail'>;
 
@@ -39,6 +40,7 @@ export default function VehicleDetailScreen({ navigation, route }: Props) {
   const [editTarget, setEditTarget] = useState<MaintenanceItemWithHealth | null>(null);
   const [missingDefaults, setMissingDefaults] = useState<DefaultItemSuggestion[]>([]);
   const [showDefaultsModal, setShowDefaultsModal] = useState(false);
+  const [editingOdometer, setEditingOdometer] = useState<null | 'hours' | 'miles'>(null);
   const insets = useSafeAreaInsets();
 
   const refresh = useCallback(async () => {
@@ -46,7 +48,7 @@ export default function VehicleDetailScreen({ navigation, route }: Props) {
     setVehicle(v);
     if (v) {
       const rawItems = await getMaintenanceItems(vehicleId);
-      const withHealth = rawItems.map((i) => computeHealth(i, v.current_hours));
+      const withHealth = rawItems.map((i) => computeHealth(i, v.current_hours, v.current_miles ?? 0));
       setItems(withHealth);
       const missing = await getMissingDefaultItems(vehicleId);
       setMissingDefaults(missing);
@@ -69,6 +71,7 @@ export default function VehicleDetailScreen({ navigation, route }: Props) {
       const additions = toAdd.map((s) => ({
         name: s.name,
         intervalHours: s.intervalHours,
+        intervalMiles: s.intervalMiles,
         sortOrder: s.sortOrder,
       }));
       await addDefaultItems(vehicleId, additions);
@@ -116,9 +119,9 @@ export default function VehicleDetailScreen({ navigation, route }: Props) {
     ]);
   };
 
-  const handleSaveEdit = async (name: string, intervalHours: number) => {
+  const handleSaveEdit = async (name: string, intervalHours: number, intervalMiles: number) => {
     if (!editTarget) return;
-    await updateMaintenanceItem(editTarget.id, name, intervalHours);
+    await updateMaintenanceItem(editTarget.id, name, intervalHours, intervalMiles);
     setEditTarget(null);
     await refresh();
   };
@@ -165,7 +168,14 @@ export default function VehicleDetailScreen({ navigation, route }: Props) {
             <Text style={styles.detail}>
               {vehicle.year ? `${vehicle.year} ` : ''}{vehicle.make} {vehicle.model}
             </Text>
-            <Text style={styles.hours}>{vehicle.current_hours.toFixed(1)} hours</Text>
+            <View style={styles.odometerRow}>
+              <TouchableOpacity onPress={() => setEditingOdometer('hours')} hitSlop={6}>
+                <Text style={styles.hours}>{vehicle.current_hours.toFixed(1)} hours ›</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setEditingOdometer('miles')} hitSlop={6}>
+                <Text style={styles.miles}>{(vehicle.current_miles ?? 0).toLocaleString()} miles ›</Text>
+              </TouchableOpacity>
+            </View>
             {regExpiryInfo && (
               <View style={styles.regRow}>
                 <Text style={styles.regLabel}>Reg: {regExpiryInfo.formatted}</Text>
@@ -284,8 +294,38 @@ export default function VehicleDetailScreen({ navigation, route }: Props) {
         visible={!!editTarget}
         initialName={editTarget?.name ?? ''}
         initialIntervalHours={editTarget?.interval_hours ?? 0}
+        initialIntervalMiles={editTarget?.interval_miles ?? 0}
         onSave={handleSaveEdit}
         onCancel={() => setEditTarget(null)}
+      />
+
+      <TextPromptModal
+        visible={editingOdometer !== null}
+        title={editingOdometer === 'miles' ? 'Update Miles' : 'Update Hours'}
+        message="Enter the current odometer reading."
+        placeholder="0"
+        keyboardType="decimal-pad"
+        allowEmpty
+        initialValue={
+          editingOdometer === 'miles'
+            ? String(vehicle.current_miles ?? 0)
+            : editingOdometer === 'hours'
+            ? String(vehicle.current_hours)
+            : ''
+        }
+        confirmLabel="Save"
+        onConfirm={async (raw) => {
+          const parsed = parseFloat(raw);
+          const safe = !isFinite(parsed) || parsed < 0 ? 0 : Math.min(parsed, 999999);
+          if (editingOdometer === 'miles') {
+            await updateVehicleMiles(vehicle.id, safe);
+          } else if (editingOdometer === 'hours') {
+            await updateVehicleHours(vehicle.id, safe);
+          }
+          setEditingOdometer(null);
+          await refresh();
+        }}
+        onCancel={() => setEditingOdometer(null)}
       />
     </View>
     </KeyboardAvoidingView>
@@ -306,7 +346,9 @@ const styles = StyleSheet.create({
   nameRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   name: { fontSize: 20, fontWeight: '700' },
   detail: { fontSize: 14, color: '#666', marginBottom: 2 },
-  hours: { fontSize: 16, fontWeight: '600', color: '#2196F3', marginTop: 2 },
+  odometerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 2 },
+  hours: { fontSize: 16, fontWeight: '600', color: '#2196F3' },
+  miles: { fontSize: 16, fontWeight: '600', color: '#2196F3' },
   regRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 8 },
   regLabel: { fontSize: 12, color: '#888' },
   regBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },

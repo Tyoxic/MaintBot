@@ -14,7 +14,8 @@ interface Props {
   visible: boolean;
   initialName: string;
   initialIntervalHours: number;
-  onSave: (name: string, intervalHours: number) => void;
+  initialIntervalMiles: number;
+  onSave: (name: string, intervalHours: number, intervalMiles: number) => void;
   onCancel: () => void;
 }
 
@@ -22,28 +23,32 @@ export default function EditItemModal({
   visible,
   initialName,
   initialIntervalHours,
+  initialIntervalMiles,
   onSave,
   onCancel,
 }: Props) {
   const [name, setName] = useState(initialName);
-  const [interval, setInterval] = useState(String(initialIntervalHours));
+  const [hours, setHours] = useState(String(initialIntervalHours));
+  const [miles, setMiles] = useState(String(initialIntervalMiles));
 
   useEffect(() => {
     if (visible) {
       setName(initialName);
-      setInterval(String(initialIntervalHours));
+      setHours(String(initialIntervalHours));
+      setMiles(String(initialIntervalMiles));
     }
-  }, [visible, initialName, initialIntervalHours]);
+  }, [visible, initialName, initialIntervalHours, initialIntervalMiles]);
 
   const trimmedName = name.trim();
-  const parsedInterval = parseFloat(interval);
-  const safeInterval =
-    !isFinite(parsedInterval) || parsedInterval < 0
-      ? 0
-      : Math.min(parsedInterval, 999999);
+  const safe = (raw: string): number => {
+    const p = parseFloat(raw);
+    if (!isFinite(p) || p < 0) return 0;
+    return Math.min(p, 999999);
+  };
+  const safeHours = safe(hours);
+  const safeMiles = safe(miles);
   const canSave = trimmedName.length > 0;
-
-  const trackOnly = safeInterval === 0;
+  const trackOnly = safeHours === 0 && safeMiles === 0;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
@@ -61,21 +66,43 @@ export default function EditItemModal({
             selectTextOnFocus
           />
 
-          <Text style={styles.label}>Interval (hours)</Text>
+          <Text style={styles.label}>Interval — Hours</Text>
           <View style={styles.intervalRow}>
             <TextInput
               style={styles.intervalInput}
-              value={interval}
-              onChangeText={setInterval}
+              value={hours}
+              onChangeText={setHours}
               keyboardType="numeric"
               selectTextOnFocus
               maxLength={5}
               placeholder="0"
             />
             <Text style={styles.intervalHint}>
-              {trackOnly ? '0 = track only (no interval reminder)' : `Service every ${safeInterval}h`}
+              {safeHours === 0 ? 'Off' : `Every ${safeHours}h`}
             </Text>
           </View>
+
+          <Text style={styles.label}>Interval — Miles</Text>
+          <View style={styles.intervalRow}>
+            <TextInput
+              style={styles.intervalInput}
+              value={miles}
+              onChangeText={setMiles}
+              keyboardType="numeric"
+              selectTextOnFocus
+              maxLength={6}
+              placeholder="0"
+            />
+            <Text style={styles.intervalHint}>
+              {safeMiles === 0 ? 'Off' : `Every ${safeMiles} mi`}
+            </Text>
+          </View>
+
+          <Text style={styles.helperLine}>
+            {trackOnly
+              ? 'Both off = track only (no interval reminder)'
+              : 'Health turns yellow/red when whichever runs out first'}
+          </Text>
 
           <View style={styles.buttons}>
             <TouchableOpacity style={styles.cancelBtn} onPress={onCancel}>
@@ -83,7 +110,7 @@ export default function EditItemModal({
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.saveBtn, !canSave && styles.saveDisabled]}
-              onPress={() => canSave && onSave(trimmedName, safeInterval)}
+              onPress={() => canSave && onSave(trimmedName, safeHours, safeMiles)}
               disabled={!canSave}
             >
               <Text style={styles.saveText}>Save</Text>
@@ -127,6 +154,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fafafa',
   },
   intervalRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  helperLine: { fontSize: 11, color: '#999', marginTop: 12, fontStyle: 'italic' },
   intervalInput: {
     width: 80,
     borderWidth: 1,

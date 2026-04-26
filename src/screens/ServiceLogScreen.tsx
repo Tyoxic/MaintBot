@@ -62,6 +62,7 @@ export default function ServiceLogScreen({ navigation, route }: Props) {
   const [items, setItems] = useState<MaintenanceItem[]>([]);
   const [logs, setLogs] = useState<MaintenanceLogEntry[]>([]);
   const [currentHours, setCurrentHours] = useState(0);
+  const [currentMiles, setCurrentMiles] = useState(0);
   const [filterItemId, setFilterItemId] = useState<number | null>(null);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [editingLog, setEditingLog] = useState<MaintenanceLogEntry | null>(null);
@@ -70,6 +71,7 @@ export default function ServiceLogScreen({ navigation, route }: Props) {
     const v = await getVehicle(vehicleId);
     if (!v) return;
     setCurrentHours(v.current_hours);
+    setCurrentMiles(v.current_miles ?? 0);
     const [rawItems, rawLogs] = await Promise.all([
       getMaintenanceItems(vehicleId),
       getMaintenanceLogs(vehicleId),
@@ -120,14 +122,15 @@ export default function ServiceLogScreen({ navigation, route }: Props) {
   const handleSave = useCallback(async (draft: LogServiceDraft) => {
     setSheetVisible(false);
     if (editingLog) {
-      await updateMaintenanceLog(editingLog.id, draft.hoursAtService, draft.notes);
+      await updateMaintenanceLog(editingLog.id, draft.hoursAtService, draft.notes, draft.milesAtService);
     } else {
       await addMaintenanceLog(
         vehicleId,
         draft.itemId,
         draft.itemName,
         draft.hoursAtService,
-        draft.notes
+        draft.notes,
+        draft.milesAtService
       );
     }
     // Recompute from the log table so historical edits and adds don't
@@ -182,6 +185,7 @@ export default function ServiceLogScreen({ navigation, route }: Props) {
         itemId: editingLog.maintenance_item_id ?? undefined,
         itemName: editingLog.item_name,
         hoursAtService: editingLog.hours_at_service,
+        milesAtService: editingLog.miles_at_service ?? null,
         performedAt: editingLog.performed_at,
         notes: editingLog.notes,
       }
@@ -269,6 +273,9 @@ export default function ServiceLogScreen({ navigation, route }: Props) {
                 <Text style={styles.cardTitle} numberOfLines={1}>{log.item_name}</Text>
                 <Text style={styles.cardSubtitle} numberOfLines={1}>
                   Done at {log.hours_at_service.toFixed(1)} hrs
+                  {log.miles_at_service != null && log.miles_at_service > 0
+                    ? ` · ${log.miles_at_service.toLocaleString()} mi`
+                    : ''}
                 </Text>
                 {log.notes ? (
                   <Text style={styles.cardNotes} numberOfLines={2}>{log.notes}</Text>
@@ -294,6 +301,7 @@ export default function ServiceLogScreen({ navigation, route }: Props) {
         title={editingLog ? 'Edit Service' : 'Log Service'}
         items={items}
         currentHours={currentHours}
+        currentMiles={currentMiles}
         initial={initialDraft}
         canDelete={!!editingLog}
         onSave={handleSave}

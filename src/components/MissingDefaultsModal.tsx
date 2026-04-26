@@ -15,6 +15,7 @@ import { DefaultItemSuggestion } from '../db/maintenanceItems';
 export interface DefaultItemSelection {
   name: string;
   intervalHours: number;
+  intervalMiles: number;
   sortOrder: number;
 }
 
@@ -32,16 +33,20 @@ export default function MissingDefaultsModal({
   onCancel,
 }: Props) {
   const [checked, setChecked] = useState<Set<string>>(new Set());
-  const [intervals, setIntervals] = useState<Record<string, string>>({});
+  const [hoursIntervals, setHoursIntervals] = useState<Record<string, string>>({});
+  const [milesIntervals, setMilesIntervals] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (visible) {
       setChecked(new Set(suggestions.map((s) => s.name)));
-      const initial: Record<string, string> = {};
+      const initialHours: Record<string, string> = {};
+      const initialMiles: Record<string, string> = {};
       for (const s of suggestions) {
-        initial[s.name] = String(s.interval_hours);
+        initialHours[s.name] = String(s.interval_hours);
+        initialMiles[s.name] = String(s.interval_miles);
       }
-      setIntervals(initial);
+      setHoursIntervals(initialHours);
+      setMilesIntervals(initialMiles);
     }
   }, [visible, suggestions]);
 
@@ -54,8 +59,17 @@ export default function MissingDefaultsModal({
     });
   };
 
-  const setInterval = (name: string, value: string) => {
-    setIntervals((prev) => ({ ...prev, [name]: value }));
+  const setHours = (name: string, value: string) => {
+    setHoursIntervals((prev) => ({ ...prev, [name]: value }));
+  };
+  const setMiles = (name: string, value: string) => {
+    setMilesIntervals((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const safeNum = (raw: string): number => {
+    const parsed = parseFloat(raw);
+    if (!isFinite(parsed) || parsed < 0) return 0;
+    return Math.min(parsed, 999999);
   };
 
   const handleApply = () => {
@@ -63,13 +77,10 @@ export default function MissingDefaultsModal({
     const toDismiss: string[] = [];
     for (const s of suggestions) {
       if (checked.has(s.name)) {
-        const raw = intervals[s.name] ?? String(s.interval_hours);
-        const parsed = parseFloat(raw);
-        const safe =
-          !isFinite(parsed) || parsed < 0 ? 0 : Math.min(parsed, 999999);
         toAdd.push({
           name: s.name,
-          intervalHours: safe,
+          intervalHours: safeNum(hoursIntervals[s.name] ?? String(s.interval_hours)),
+          intervalMiles: safeNum(milesIntervals[s.name] ?? String(s.interval_miles)),
           sortOrder: s.sort_order,
         });
       } else {
@@ -96,8 +107,8 @@ export default function MissingDefaultsModal({
           <ScrollView style={styles.list} keyboardShouldPersistTaps="handled">
             {suggestions.map((s) => {
               const isChecked = checked.has(s.name);
-              const intervalValue = intervals[s.name] ?? String(s.interval_hours);
-              const trackOnly = parseFloat(intervalValue) === 0 || intervalValue === '';
+              const hVal = hoursIntervals[s.name] ?? String(s.interval_hours);
+              const mVal = milesIntervals[s.name] ?? String(s.interval_miles);
               return (
                 <View key={s.name} style={styles.row}>
                   <TouchableOpacity
@@ -110,26 +121,38 @@ export default function MissingDefaultsModal({
                     </View>
                     <Text style={styles.rowName} numberOfLines={1}>{s.name}</Text>
                   </TouchableOpacity>
-                  <View style={styles.rightWrap}>
-                    <TextInput
-                      style={[styles.intervalInput, !isChecked && styles.intervalDisabled]}
-                      value={intervalValue}
-                      onChangeText={(v) => setInterval(s.name, v)}
-                      keyboardType="numeric"
-                      editable={isChecked}
-                      selectTextOnFocus
-                      maxLength={5}
-                    />
-                    <Text style={styles.intervalUnit}>
-                      {trackOnly ? 'track' : 'h'}
-                    </Text>
+                  <View style={styles.rightStack}>
+                    <View style={styles.rightWrap}>
+                      <TextInput
+                        style={[styles.intervalInput, !isChecked && styles.intervalDisabled]}
+                        value={hVal}
+                        onChangeText={(v) => setHours(s.name, v)}
+                        keyboardType="numeric"
+                        editable={isChecked}
+                        selectTextOnFocus
+                        maxLength={5}
+                      />
+                      <Text style={styles.intervalUnit}>h</Text>
+                    </View>
+                    <View style={styles.rightWrap}>
+                      <TextInput
+                        style={[styles.intervalInput, !isChecked && styles.intervalDisabled]}
+                        value={mVal}
+                        onChangeText={(v) => setMiles(s.name, v)}
+                        keyboardType="numeric"
+                        editable={isChecked}
+                        selectTextOnFocus
+                        maxLength={6}
+                      />
+                      <Text style={styles.intervalUnit}>mi</Text>
+                    </View>
                   </View>
                 </View>
               );
             })}
           </ScrollView>
           <Text style={styles.hint}>
-            0 = track only (no reminder interval)
+            0 in both fields = track only. Set either or both.
           </Text>
           <View style={styles.buttons}>
             <TouchableOpacity style={styles.cancelBtn} onPress={onCancel}>
@@ -186,6 +209,7 @@ const styles = StyleSheet.create({
   checkboxChecked: { backgroundColor: '#2196F3', borderColor: '#2196F3' },
   checkmark: { color: '#fff', fontSize: 14, fontWeight: '700' },
   rowName: { flex: 1, fontSize: 15, fontWeight: '600', color: '#222' },
+  rightStack: { flexDirection: 'column', gap: 4 },
   rightWrap: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   intervalInput: {
     width: 54,

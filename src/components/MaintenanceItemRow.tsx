@@ -9,17 +9,41 @@ interface Props {
   onLongPress?: () => void;
 }
 
+function formatRemaining(remaining: number, unit: 'hrs' | 'mi'): string {
+  if (remaining <= 0) return `OVERDUE by ${Math.abs(remaining).toFixed(unit === 'mi' ? 0 : 1)} ${unit}`;
+  return `${remaining.toFixed(unit === 'mi' ? 0 : 1)} ${unit} left`;
+}
+
 export default function MaintenanceItemRow({ item, onPress, onLongPress }: Props) {
-  const trackOnly = item.interval_hours <= 0;
+  const hasHours = item.interval_hours > 0;
+  const hasMiles = item.interval_miles > 0;
+  const trackOnly = !hasHours && !hasMiles;
   const color = HEALTH_COLORS[item.health];
 
-  let hoursText: string;
+  let primaryText: string;
+  let secondaryText: string | null = null;
+
   if (trackOnly) {
-    hoursText = item.last_done_hours > 0 ? `Done @ ${item.last_done_hours.toFixed(1)} hrs` : 'Not yet logged';
-  } else if (item.hoursRemaining <= 0) {
-    hoursText = `OVERDUE by ${Math.abs(item.hoursRemaining).toFixed(1)} hrs`;
+    const lastHours = item.last_done_hours;
+    const lastMiles = item.last_done_miles ?? 0;
+    if (lastHours > 0 && lastMiles > 0) {
+      primaryText = `Done @ ${lastHours.toFixed(1)} hrs / ${lastMiles.toLocaleString()} mi`;
+    } else if (lastHours > 0) {
+      primaryText = `Done @ ${lastHours.toFixed(1)} hrs`;
+    } else if (lastMiles > 0) {
+      primaryText = `Done @ ${lastMiles.toLocaleString()} mi`;
+    } else {
+      primaryText = 'Not yet logged';
+    }
   } else {
-    hoursText = `${item.hoursRemaining.toFixed(1)} hrs left`;
+    // Show whichever dimension is driving the status, with secondary if both tracked
+    if (item.drivenBy === 'hours') {
+      primaryText = formatRemaining(item.hoursRemaining, 'hrs');
+      if (hasMiles) secondaryText = formatRemaining(item.milesRemaining, 'mi');
+    } else {
+      primaryText = formatRemaining(item.milesRemaining, 'mi');
+      if (hasHours) secondaryText = formatRemaining(item.hoursRemaining, 'hrs');
+    }
   }
 
   const fillPercent = Math.max(0, Math.min(100, item.percentRemaining));
@@ -34,7 +58,12 @@ export default function MaintenanceItemRow({ item, onPress, onLongPress }: Props
     >
       <View style={styles.topLine}>
         <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-        <Text style={[styles.hoursText, { color: trackOnly ? '#999' : color }]}>{hoursText}</Text>
+        <View style={styles.statusWrap}>
+          <Text style={[styles.primaryText, { color: trackOnly ? '#999' : color }]}>{primaryText}</Text>
+          {secondaryText ? (
+            <Text style={styles.secondaryText}>{secondaryText}</Text>
+          ) : null}
+        </View>
       </View>
       {!trackOnly && (
         <View style={styles.barTrack}>
@@ -63,9 +92,17 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
-  hoursText: {
+  statusWrap: {
+    alignItems: 'flex-end',
+  },
+  primaryText: {
     fontSize: 13,
     fontWeight: '600',
+  },
+  secondaryText: {
+    fontSize: 11,
+    color: '#999',
+    marginTop: 1,
   },
   barTrack: {
     height: 6,

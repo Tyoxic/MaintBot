@@ -40,7 +40,9 @@ export default function LogRideScreen({ navigation, route }: Props) {
 
   const previewDueItems = async (hours: number) => {
     const rawItems = await getMaintenanceItems(vehicleId);
-    const withHealth = rawItems.map((i) => computeHealth(i, hours));
+    const v = await getVehicle(vehicleId);
+    const miles = v?.current_miles ?? 0;
+    const withHealth = rawItems.map((i) => computeHealth(i, hours, miles));
     setDueItems(withHealth.filter((i) => i.percentRemaining <= 25));
   };
 

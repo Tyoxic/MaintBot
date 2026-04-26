@@ -42,3 +42,9 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# App store screenshots
+pictures/*.png
+pictures/*.jpg
+pictures/*.jpeg
+pictures/app_store*/

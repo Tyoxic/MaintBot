@@ -6,16 +6,19 @@ export async function addMaintenanceLog(
   maintenanceItemId: number | null,
   itemName: string,
   hoursAtService: number,
-  notes: string = ''
+  notes: string = '',
+  milesAtService: number | null = null
 ): Promise<number> {
   const db = await getDatabase();
   const result = await db.runAsync(
-    `INSERT INTO maintenance_log (vehicle_id, maintenance_item_id, item_name, hours_at_service, notes)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO maintenance_log
+      (vehicle_id, maintenance_item_id, item_name, hours_at_service, miles_at_service, notes)
+     VALUES (?, ?, ?, ?, ?, ?)`,
     vehicleId,
     maintenanceItemId,
     itemName,
     hoursAtService,
+    milesAtService,
     notes
   );
   return result.lastInsertRowId;
@@ -32,12 +35,14 @@ export async function getMaintenanceLogs(vehicleId: number): Promise<Maintenance
 export async function updateMaintenanceLog(
   logId: number,
   hoursAtService: number,
-  notes: string
+  notes: string,
+  milesAtService: number | null = null
 ): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    'UPDATE maintenance_log SET hours_at_service = ?, notes = ? WHERE id = ?',
+    'UPDATE maintenance_log SET hours_at_service = ?, miles_at_service = ?, notes = ? WHERE id = ?',
     hoursAtService,
+    milesAtService,
     notes,
     logId
   );

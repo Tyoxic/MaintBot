@@ -25,6 +25,7 @@ export default function MarkDoneScreen({ navigation, route }: Props) {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [item, setItem] = useState<MaintenanceItem | null>(null);
   const [hoursAtService, setHoursAtService] = useState('');
+  const [milesAtService, setMilesAtService] = useState('');
   const [notes, setNotes] = useState('');
   const insets = useSafeAreaInsets();
 
@@ -33,15 +34,20 @@ export default function MarkDoneScreen({ navigation, route }: Props) {
       const [v, i] = await Promise.all([getVehicle(vehicleId), getMaintenanceItem(itemId)]);
       setVehicle(v);
       setItem(i);
-      if (v) setHoursAtService(v.current_hours.toString());
+      if (v) {
+        setHoursAtService(v.current_hours.toString());
+        setMilesAtService(v.current_miles && v.current_miles > 0 ? v.current_miles.toString() : '');
+      }
     })();
   }, [vehicleId, itemId]);
 
   if (!vehicle || !item) return null;
 
   const parsedHours = parseFloat(hoursAtService) || 0;
-  const trackOnly = item.interval_hours <= 0;
-  const health = computeHealth(item, vehicle.current_hours);
+  const milesTrimmed = milesAtService.trim();
+  const parsedMiles = milesTrimmed === '' ? null : parseFloat(milesTrimmed);
+  const trackOnly = item.interval_hours <= 0 && item.interval_miles <= 0;
+  const health = computeHealth(item, vehicle.current_hours, vehicle.current_miles ?? 0);
 
   const handleConfirm = async () => {
     if (!isFinite(parsedHours) || parsedHours < 0) {
@@ -52,8 +58,12 @@ export default function MarkDoneScreen({ navigation, route }: Props) {
       Alert.alert('Invalid hours', 'That value is unreasonably large. Please check your input.');
       return;
     }
-    await markItemDone(itemId, parsedHours);
-    await addMaintenanceLog(vehicleId, itemId, item.name, parsedHours, notes.trim());
+    if (parsedMiles !== null && (!isFinite(parsedMiles) || parsedMiles < 0 || parsedMiles > 999999)) {
+      Alert.alert('Invalid miles', 'Miles must be zero or greater (or leave blank).');
+      return;
+    }
+    await markItemDone(itemId, parsedHours, parsedMiles);
+    await addMaintenanceLog(vehicleId, itemId, item.name, parsedHours, notes.trim(), parsedMiles);
     navigation.goBack();
   };
 
@@ -101,6 +111,18 @@ export default function MarkDoneScreen({ navigation, route }: Props) {
       />
       <Text style={styles.hint}>
         Defaults to current bike hours. Change if this was done at a different time.
+      </Text>
+
+      <Text style={styles.label}>Miles at service (optional)</Text>
+      <TextInput
+        style={styles.input}
+        value={milesAtService}
+        onChangeText={setMilesAtService}
+        keyboardType="decimal-pad"
+        placeholder={vehicle.current_miles && vehicle.current_miles > 0 ? vehicle.current_miles.toString() : 'leave blank if not tracking'}
+      />
+      <Text style={styles.hint}>
+        Optional. Fill in if you also track miles for this vehicle.
       </Text>
 
       <Text style={styles.label}>Notes (optional)</Text>
