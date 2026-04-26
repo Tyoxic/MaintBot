@@ -93,11 +93,15 @@ export default function MarkDoneScreen({ navigation, route }: Props) {
         )}
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Last done at</Text>
-          <Text style={styles.infoValue}>{item.last_done_hours.toFixed(1)} hrs</Text>
+          <Text style={styles.infoValue}>
+            {item.last_done_hours.toFixed(1)} hrs / {(item.last_done_miles ?? 0).toLocaleString()} mi
+          </Text>
         </View>
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Current bike hours</Text>
-          <Text style={styles.infoValue}>{vehicle.current_hours.toFixed(1)} hrs</Text>
+          <Text style={styles.infoLabel}>Current</Text>
+          <Text style={styles.infoValue}>
+            {vehicle.current_hours.toFixed(1)} hrs / {(vehicle.current_miles ?? 0).toLocaleString()} mi
+          </Text>
         </View>
       </View>
 

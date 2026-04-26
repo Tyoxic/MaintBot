@@ -26,14 +26,10 @@ export default function MaintenanceItemRow({ item, onPress, onLongPress }: Props
   if (trackOnly) {
     const lastHours = item.last_done_hours;
     const lastMiles = item.last_done_miles ?? 0;
-    if (lastHours > 0 && lastMiles > 0) {
-      primaryText = `Done @ ${lastHours.toFixed(1)} hrs / ${lastMiles.toLocaleString()} mi`;
-    } else if (lastHours > 0) {
-      primaryText = `Done @ ${lastHours.toFixed(1)} hrs`;
-    } else if (lastMiles > 0) {
-      primaryText = `Done @ ${lastMiles.toLocaleString()} mi`;
-    } else {
+    if (lastHours <= 0 && lastMiles <= 0) {
       primaryText = 'Not yet logged';
+    } else {
+      primaryText = `Done @ ${lastHours.toFixed(1)} hrs / ${lastMiles.toLocaleString()} mi`;
     }
   } else {
     // Show whichever dimension is driving the status, with secondary if both tracked

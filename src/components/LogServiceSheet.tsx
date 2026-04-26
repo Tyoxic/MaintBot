@@ -38,11 +38,11 @@ interface Props {
   onCancel: () => void;
 }
 
-function formatContext(item: MaintenanceItem, currentHours: number): string {
-  if (!item.last_done_hours || item.last_done_hours === 0) return 'Never logged';
-  const elapsed = Math.max(0, currentHours - item.last_done_hours);
-  if (elapsed === 0) return 'Done at current hours';
-  return `Last done ${elapsed.toFixed(1)}h ago`;
+function formatContext(item: MaintenanceItem): string {
+  const lastHours = item.last_done_hours;
+  const lastMiles = item.last_done_miles ?? 0;
+  if (lastHours <= 0 && lastMiles <= 0) return 'Never logged';
+  return `Last done @ ${lastHours.toFixed(1)} hrs / ${lastMiles.toLocaleString()} mi`;
 }
 
 export default function LogServiceSheet({
@@ -170,8 +170,9 @@ export default function LogServiceSheet({
                             {item.name}
                           </Text>
                           <Text style={styles.itemContext}>
-                            {formatContext(item, currentHours)}
+                            {formatContext(item)}
                             {item.interval_hours > 0 ? ` · Every ${item.interval_hours}h` : ''}
+                            {item.interval_miles > 0 ? ` · Every ${item.interval_miles.toLocaleString()}mi` : ''}
                           </Text>
                         </View>
                         {selected ? <Text style={styles.checkmark}>✓</Text> : null}
